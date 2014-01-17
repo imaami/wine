@@ -2201,6 +2201,8 @@ AC_CHECK_FUNCS(\
 	pwrite \
 	readdir \
 	readlink \
+	renameat \
+	renameat2 \
 	sched_yield \
 	select \
 	setproctitle \
