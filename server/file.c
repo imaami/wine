@@ -230,6 +230,22 @@ int is_file_executable( const char *name )
     return len >= 4 && (!strcasecmp( name + len - 4, ".exe") || !strcasecmp( name + len - 4, ".com" ));
 }
 
+static int xattr_fget( int filedes, const char *name, void *value, size_t size )
+{
+#if defined(XATTR_ADDITIONAL_OPTIONS)
+    return fgetxattr( filedes, name, value, size, 0, 0 );
+#elif defined(HAVE_SYS_XATTR_H) || defined(HAVE_ATTR_XATTR_H)
+    return fgetxattr( filedes, name, value, size );
+#elif defined(HAVE_SYS_EXTATTR_H)
+    if (!xattr_valid_namespace( name )) return -1;
+    return extattr_get_fd( filedes, EXTATTR_NAMESPACE_USER, &name[XATTR_USER_PREFIX_LEN],
+                           value, size );
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
+}
+
 static int xattr_fset( int filedes, const char *name, void *value, size_t size )
 {
 #if defined(XATTR_ADDITIONAL_OPTIONS)
@@ -528,6 +544,29 @@ static void convert_generic_sd( struct security_descriptor *sd )
     }
 }
 
+static struct security_descriptor *get_xattr_sd( int fd )
+{
+    struct security_descriptor *sd;
+    char buffer[XATTR_SIZE_MAX];
+    int n;
+
+    n = xattr_fget( fd, WINE_XATTR_SD, buffer, sizeof(buffer) );
+    if (n == -1 || n < 2 + sizeof(struct security_descriptor)) return NULL;
+
+    /* validate that we can handle the descriptor */
+    if (buffer[0] != SECURITY_DESCRIPTOR_REVISION || buffer[1] != 0 ||
+            !sd_is_valid( (struct security_descriptor *)&buffer[2], n - 2 ))
+        return NULL;
+
+    sd = mem_alloc( n - 2 );
+    if (sd)
+    {
+        memcpy( sd, &buffer[2], n - 2 );
+        convert_generic_sd( sd ); /* for backwards compatibility */
+    }
+    return sd;
+}
+
 struct security_descriptor *get_file_sd( struct object *obj, struct fd *fd, mode_t *mode,
                                          uid_t *uid )
 {
@@ -543,9 +582,10 @@ struct security_descriptor *get_file_sd( struct object *obj, struct fd *fd, mode
         (st.st_uid == *uid))
         return obj->sd;
 
-    sd = mode_to_sd( st.st_mode,
-                     security_unix_uid_to_sid( st.st_uid ),
-                     token_get_primary_group( current->process->token ));
+    sd = get_xattr_sd( unix_fd );
+    if (!sd) sd = mode_to_sd( st.st_mode,
+                              security_unix_uid_to_sid( st.st_uid ),
+                              token_get_primary_group( current->process->token ));
     if (!sd) return obj->sd;
 
     *mode = st.st_mode;
