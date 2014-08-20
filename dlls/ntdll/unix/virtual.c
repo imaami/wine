@@ -729,6 +729,14 @@ static void free_ranges_remove_view( struct file_view *view )
 }
 
 
+#if defined(__i386__)
+NTSTATUS WINAPI NtProtectVirtualMemory( HANDLE process, PVOID *addr_ptr, SIZE_T *size_ptr,
+                                        ULONG new_prot, ULONG *old_prot ) DECLSPEC_ALIGN(4096);
+NTSTATUS WINAPI NtCreateSection( HANDLE *handle, ACCESS_MASK access, const OBJECT_ATTRIBUTES *attr,
+                                 const LARGE_INTEGER *size, ULONG protect,
+                                 ULONG sec_flags, HANDLE file ) DECLSPEC_ALIGN(4096);
+#endif
+
 static inline int is_view_valloc( const struct file_view *view )
 {
     return !(view->protect & (SEC_FILE | SEC_RESERVE | SEC_COMMIT));
