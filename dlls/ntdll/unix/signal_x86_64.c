@@ -2908,6 +2908,12 @@ void *signal_init_syscalls(void)
     return syscall_dispatcher;
 }
 
+/**********************************************************************
+ *    signal_init_early
+ */
+void signal_init_early(void)
+{
+}
 
 /***********************************************************************
  *           init_thread_context
