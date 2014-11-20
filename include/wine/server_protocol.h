@@ -1777,6 +1777,7 @@ struct get_socket_info_reply
     int type;
     int protocol;
     char __pad_20[4];
+    timeout_t connect_time;
 };
 
 
@@ -6363,7 +6364,7 @@ union generic_reply
 
 /* ### protocol_version begin ### */
 
-#define SERVER_PROTOCOL_VERSION 665
+#define SERVER_PROTOCOL_VERSION 666
 
 /* ### protocol_version end ### */
 
