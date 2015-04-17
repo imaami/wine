@@ -2613,6 +2613,7 @@ static int is_dir_empty( int fd )
 static void set_fd_disposition( struct fd *fd, int unlink )
 {
     struct stat st;
+    struct list *ptr;
 
     if (!fd->inode)
     {
@@ -2656,6 +2657,17 @@ static void set_fd_disposition( struct fd *fd, int unlink )
         else  /* can't unlink special files */
         {
             set_error( STATUS_INVALID_PARAMETER );
+            return;
+        }
+    }
+
+    /* can't unlink files which are mapped to memory */
+    LIST_FOR_EACH( ptr, &fd->inode->open )
+    {
+        struct fd *fd_ptr = LIST_ENTRY( ptr, struct fd, inode_entry );
+        if (fd_ptr != fd && (fd_ptr->access & FILE_MAPPING_ACCESS))
+        {
+            set_error( STATUS_CANNOT_DELETE );
             return;
         }
     }
