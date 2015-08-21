@@ -5092,6 +5092,19 @@ struct set_fd_name_info_reply
 
 
 
+struct set_fd_eof_info_request
+{
+    struct request_header __header;
+    obj_handle_t handle;
+    file_pos_t   eof;
+};
+struct set_fd_eof_info_reply
+{
+    struct reply_header __header;
+};
+
+
+
 struct get_window_layered_info_request
 {
     struct request_header __header;
@@ -5735,6 +5748,7 @@ enum request
     REQ_set_fd_completion_mode,
     REQ_set_fd_disp_info,
     REQ_set_fd_name_info,
+    REQ_set_fd_eof_info,
     REQ_get_window_layered_info,
     REQ_set_window_layered_info,
     REQ_alloc_user_handle,
@@ -6021,6 +6035,7 @@ union generic_request
     struct set_fd_completion_mode_request set_fd_completion_mode_request;
     struct set_fd_disp_info_request set_fd_disp_info_request;
     struct set_fd_name_info_request set_fd_name_info_request;
+    struct set_fd_eof_info_request set_fd_eof_info_request;
     struct get_window_layered_info_request get_window_layered_info_request;
     struct set_window_layered_info_request set_window_layered_info_request;
     struct alloc_user_handle_request alloc_user_handle_request;
@@ -6305,6 +6320,7 @@ union generic_reply
     struct set_fd_completion_mode_reply set_fd_completion_mode_reply;
     struct set_fd_disp_info_reply set_fd_disp_info_reply;
     struct set_fd_name_info_reply set_fd_name_info_reply;
+    struct set_fd_eof_info_reply set_fd_eof_info_reply;
     struct get_window_layered_info_reply get_window_layered_info_reply;
     struct set_window_layered_info_reply set_window_layered_info_reply;
     struct alloc_user_handle_reply alloc_user_handle_reply;
@@ -6334,7 +6350,7 @@ union generic_reply
 
 /* ### protocol_version begin ### */
 
-#define SERVER_PROTOCOL_VERSION 704
+#define SERVER_PROTOCOL_VERSION 705
 
 /* ### protocol_version end ### */
 
