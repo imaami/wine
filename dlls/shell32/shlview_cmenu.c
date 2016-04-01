@@ -185,6 +185,8 @@ typedef struct
     BOOL desktop;
 } ContextMenu;
 
+static BOOL DoPaste(ContextMenu *This);
+
 static inline ContextMenu *impl_from_IContextMenu3(IContextMenu3 *iface)
 {
     return CONTAINING_RECORD(iface, ContextMenu, IContextMenu3_iface);
@@ -294,6 +296,30 @@ static UINT max_menu_id(HMENU hmenu, UINT offset, UINT last)
     return max_id;
 }
 
+static BOOL CheckClipboard(void)
+{
+    IDataObject *pda;
+    BOOL ret = FALSE;
+
+    if (SUCCEEDED(OleGetClipboard(&pda)))
+    {
+        STGMEDIUM medium;
+        FORMATETC formatetc;
+
+        /* Set the FORMATETC structure*/
+        InitFormatEtc(formatetc, RegisterClipboardFormatW(CFSTR_SHELLIDLISTW), TYMED_HGLOBAL);
+
+        /* Get the pidls from IDataObject */
+        if (SUCCEEDED(IDataObject_GetData(pda, &formatetc, &medium)))
+        {
+            ReleaseStgMedium(&medium);
+            ret = TRUE;
+        }
+        IDataObject_Release(pda);
+    }
+    return ret;
+}
+
 static HRESULT WINAPI ItemMenu_QueryContextMenu(
 	IContextMenu3 *iface,
 	HMENU hmenu,
@@ -304,6 +330,7 @@ static HRESULT WINAPI ItemMenu_QueryContextMenu(
 {
     ContextMenu *This = impl_from_IContextMenu3(iface);
     INT uIDMax;
+    DWORD attr = SFGAO_CANRENAME;
 
     TRACE("(%p)->(%p %d 0x%x 0x%x 0x%x )\n", This, hmenu, indexMenu, idCmdFirst, idCmdLast, uFlags);
 
@@ -341,6 +368,9 @@ static HRESULT WINAPI ItemMenu_QueryContextMenu(
 
         SetMenuDefaultItem(hmenu, 0, MF_BYPOSITION);
 
+        if (This->apidl && This->cidl == 1)
+            IShellFolder_GetAttributesOf(This->parent, 1, (LPCITEMIDLIST*)This->apidl, &attr);
+
         if(uFlags & ~CMF_CANRENAME)
             RemoveMenu(hmenu, FCIDM_SHVIEW_RENAME - FCIDM_BASE + idCmdFirst, MF_BYCOMMAND);
         else
@@ -351,15 +381,13 @@ static HRESULT WINAPI ItemMenu_QueryContextMenu(
             if (!This->apidl || This->cidl > 1)
                 enable |= MFS_DISABLED;
             else
-            {
-                DWORD attr = SFGAO_CANRENAME;
-
-                IShellFolder_GetAttributesOf(This->parent, 1, (LPCITEMIDLIST*)This->apidl, &attr);
                 enable |= (attr & SFGAO_CANRENAME) ? MFS_ENABLED : MFS_DISABLED;
-            }
 
             EnableMenuItem(hmenu, FCIDM_SHVIEW_RENAME - FCIDM_BASE + idCmdFirst, enable);
         }
+
+        if ((attr & (SFGAO_FILESYSTEM|SFGAO_FOLDER)) != (SFGAO_FILESYSTEM|SFGAO_FOLDER) || !CheckClipboard())
+            RemoveMenu(hmenu, FCIDM_SHVIEW_INSERT - FCIDM_BASE + idCmdFirst, MF_BYCOMMAND);
 
         return MAKE_HRESULT(SEVERITY_SUCCESS, 0, uIDMax-idCmdFirst);
     }
@@ -1197,6 +1225,10 @@ static HRESULT WINAPI ItemMenu_InvokeCommand(
             TRACE("Verb FCIDM_SHVIEW_CUT\n");
             DoCopyOrCut(This, lpcmi->hwnd, TRUE);
             break;
+        case FCIDM_SHVIEW_INSERT:
+            TRACE("Verb FCIDM_SHVIEW_INSERT\n");
+            DoPaste(This);
+            break;
         case FCIDM_SHVIEW_PROPERTIES:
             TRACE("Verb FCIDM_SHVIEW_PROPERTIES\n");
             DoOpenProperties(This, lpcmi->hwnd);
@@ -1232,6 +1264,7 @@ static HRESULT WINAPI ItemMenu_GetCommandString(IContextMenu3 *iface, UINT_PTR c
     static const WCHAR exploreW[] = {'e','x','p','l','o','r','e',0};
     static const WCHAR cutW[] = {'c','u','t',0};
     static const WCHAR copyW[] = {'c','o','p','y',0};
+    static const WCHAR pasteW[] = {'p','a','s','t','e',0};
     static const WCHAR linkW[] = {'l','i','n','k',0};
     static const WCHAR deleteW[] = {'d','e','l','e','t','e',0};
     static const WCHAR propertiesW[] = {'p','r','o','p','e','r','t','i','e','s',0};
@@ -1264,6 +1297,9 @@ static HRESULT WINAPI ItemMenu_GetCommandString(IContextMenu3 *iface, UINT_PTR c
             break;
         case FCIDM_SHVIEW_COPY:
             cmdW = copyW;
+            break;
+        case FCIDM_SHVIEW_INSERT:
+            cmdW = pasteW;
             break;
         case FCIDM_SHVIEW_CREATELINK:
             cmdW = linkW;
