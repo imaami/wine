@@ -4686,6 +4686,7 @@ struct wined3d_cs_queue
 
 struct wined3d_device_context_ops
 {
+    BOOL (*check_space)(struct wined3d_device_context *context, size_t size, enum wined3d_cs_queue_id queue_id);
     void *(*require_space)(struct wined3d_device_context *context, size_t size, enum wined3d_cs_queue_id queue_id);
     void (*submit)(struct wined3d_device_context *context, enum wined3d_cs_queue_id queue_id);
     void (*finish)(struct wined3d_device_context *context, enum wined3d_cs_queue_id queue_id);

@@ -5220,8 +5220,6 @@ void CDECL wined3d_device_context_update_sub_resource(struct wined3d_device_cont
         return;
     }
 
-    wined3d_resource_wait_idle(resource);
-
     wined3d_device_context_emit_update_sub_resource(context, resource,
             sub_resource_idx, box, data, row_pitch, depth_pitch);
 }
