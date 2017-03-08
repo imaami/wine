@@ -2435,7 +2435,8 @@ NTSTATUS WINAPI NtQuerySystemInformation( SYSTEM_INFORMATION_CLASS class,
                     shi->Handle[i].OwnerPid     = handle_info[i].owner;
                     shi->Handle[i].HandleValue  = handle_info[i].handle;
                     shi->Handle[i].AccessMask   = handle_info[i].access;
-                    /* FIXME: Fill out ObjectType, HandleFlags, ObjectPointer */
+                    shi->Handle[i].ObjectType   = handle_info[i].type;
+                    /* FIXME: Fill out HandleFlags, ObjectPointer */
                 }
             }
             else if (ret == STATUS_BUFFER_TOO_SMALL)
@@ -2487,6 +2488,7 @@ NTSTATUS WINAPI NtQuerySystemInformation( SYSTEM_INFORMATION_CLASS class,
                     shi->Handle[i].UniqueProcessId = handle_info[i].owner;
                     shi->Handle[i].HandleValue     = handle_info[i].handle;
                     shi->Handle[i].GrantedAccess   = handle_info[i].access;
+                    shi->Handle[i].ObjectTypeIndex = handle_info[i].type;
                     /* FIXME: Fill out remaining fields */
                 }
             }
