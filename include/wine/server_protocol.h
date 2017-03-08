@@ -4709,6 +4709,21 @@ struct get_object_type_reply
 
 
 
+struct get_object_type_by_index_request
+{
+    struct request_header __header;
+    unsigned int   index;
+};
+struct get_object_type_by_index_reply
+{
+    struct reply_header __header;
+    data_size_t    total;
+    /* VARARG(type,unicode_str); */
+    char __pad_12[4];
+};
+
+
+
 struct get_token_impersonation_level_request
 {
     struct request_header __header;
@@ -5682,6 +5697,7 @@ enum request
     REQ_query_symlink,
     REQ_get_object_info,
     REQ_get_object_type,
+    REQ_get_object_type_by_index,
     REQ_get_token_impersonation_level,
     REQ_allocate_locally_unique_id,
     REQ_create_device_manager,
@@ -5969,6 +5985,7 @@ union generic_request
     struct query_symlink_request query_symlink_request;
     struct get_object_info_request get_object_info_request;
     struct get_object_type_request get_object_type_request;
+    struct get_object_type_by_index_request get_object_type_by_index_request;
     struct get_token_impersonation_level_request get_token_impersonation_level_request;
     struct allocate_locally_unique_id_request allocate_locally_unique_id_request;
     struct create_device_manager_request create_device_manager_request;
@@ -6254,6 +6271,7 @@ union generic_reply
     struct query_symlink_reply query_symlink_reply;
     struct get_object_info_reply get_object_info_reply;
     struct get_object_type_reply get_object_type_reply;
+    struct get_object_type_by_index_reply get_object_type_by_index_reply;
     struct get_token_impersonation_level_reply get_token_impersonation_level_reply;
     struct allocate_locally_unique_id_reply allocate_locally_unique_id_reply;
     struct create_device_manager_reply create_device_manager_reply;
@@ -6306,7 +6324,7 @@ union generic_reply
 
 /* ### protocol_version begin ### */
 
-#define SERVER_PROTOCOL_VERSION 659
+#define SERVER_PROTOCOL_VERSION 660
 
 /* ### protocol_version end ### */
 
