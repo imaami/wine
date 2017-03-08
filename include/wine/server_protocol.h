@@ -4538,6 +4538,7 @@ struct handle_info
     process_id_t owner;
     obj_handle_t handle;
     unsigned int access;
+    unsigned int type;
 };
 
 
@@ -6241,7 +6242,7 @@ union generic_reply
 
 /* ### protocol_version begin ### */
 
-#define SERVER_PROTOCOL_VERSION 655
+#define SERVER_PROTOCOL_VERSION 656
 
 /* ### protocol_version end ### */
 
