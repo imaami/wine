@@ -4716,9 +4716,9 @@ struct get_object_type_request
 struct get_object_type_reply
 {
     struct reply_header __header;
+    unsigned int   index;
     data_size_t    total;
     /* VARARG(type,unicode_str); */
-    char __pad_12[4];
 };
 
 
@@ -6241,7 +6241,7 @@ union generic_reply
 
 /* ### protocol_version begin ### */
 
-#define SERVER_PROTOCOL_VERSION 654
+#define SERVER_PROTOCOL_VERSION 655
 
 /* ### protocol_version end ### */
 
