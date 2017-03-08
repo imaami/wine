@@ -2035,6 +2035,18 @@ static void get_timezone_info( RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi )
     mutex_unlock( &tz_mutex );
 }
 
+static DWORD translate_object_index(DWORD index)
+{
+    WORD version = MAKEWORD(NtCurrentTeb()->Peb->OSMinorVersion, NtCurrentTeb()->Peb->OSMajorVersion);
+
+    /* Process Hacker depends on this logic */
+    if (version >= 0x0602)
+        return index;
+    else if (version == 0x0601)
+        return index + 2;
+    else
+        return index + 1;
+}
 
 /******************************************************************************
  *              NtQuerySystemInformation  (NTDLL.@)
@@ -2435,7 +2447,7 @@ NTSTATUS WINAPI NtQuerySystemInformation( SYSTEM_INFORMATION_CLASS class,
                     shi->Handle[i].OwnerPid     = handle_info[i].owner;
                     shi->Handle[i].HandleValue  = handle_info[i].handle;
                     shi->Handle[i].AccessMask   = handle_info[i].access;
-                    shi->Handle[i].ObjectType   = handle_info[i].type;
+                    shi->Handle[i].ObjectType   = translate_object_index( handle_info[i].type );
                     /* FIXME: Fill out HandleFlags, ObjectPointer */
                 }
             }
@@ -2488,7 +2500,7 @@ NTSTATUS WINAPI NtQuerySystemInformation( SYSTEM_INFORMATION_CLASS class,
                     shi->Handle[i].UniqueProcessId = handle_info[i].owner;
                     shi->Handle[i].HandleValue     = handle_info[i].handle;
                     shi->Handle[i].GrantedAccess   = handle_info[i].access;
-                    shi->Handle[i].ObjectTypeIndex = handle_info[i].type;
+                    shi->Handle[i].ObjectTypeIndex = translate_object_index( handle_info[i].type );
                     /* FIXME: Fill out remaining fields */
                 }
             }
@@ -2751,7 +2763,6 @@ NTSTATUS WINAPI NtQuerySystemInformation( SYSTEM_INFORMATION_CLASS class,
     if (ret_size) *ret_size = len;
     return ret;
 }
-
 
 /******************************************************************************
  *              NtQuerySystemInformationEx  (NTDLL.@)
