@@ -177,6 +177,7 @@ static PEB_LDR_DATA ldr =
 
 static RTL_BITMAP tls_bitmap;
 static RTL_BITMAP tls_expansion_bitmap;
+static API_SET_NAMESPACE_ARRAY apiset_map;
 
 static WINE_MODREF *cached_modref;
 static WINE_MODREF *current_modref;
@@ -3707,6 +3708,7 @@ void WINAPI LdrInitializeThunk( CONTEXT *context, ULONG_PTR unknown2, ULONG_PTR 
 
         peb->LdrData            = &ldr;
         peb->FastPebLock        = &peb_lock;
+        peb->ApiSetMap          = &apiset_map;
         peb->TlsBitmap          = &tls_bitmap;
         peb->TlsExpansionBitmap = &tls_expansion_bitmap;
         peb->LoaderLock         = &loader_section;
