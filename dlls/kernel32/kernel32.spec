@@ -1684,3 +1684,7 @@
 
 # Init code
 @ cdecl __wine_kernel_init()
+
+# Steam client
+@ cdecl wine_get_steamclient_if_substr(wstr)
+@ cdecl wine_get_steamclient_path(long ptr long ptr)

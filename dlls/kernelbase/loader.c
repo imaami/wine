@@ -36,6 +36,9 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(module);
 
+extern HMODULE CDECL wine_get_steamclient_if_substr( LPCWSTR str );
+extern BOOL CDECL wine_get_steamclient_path( HMODULE module, LPWSTR dest,
+                                             DWORD size, ULONG *result_len );
 
 /***********************************************************************
  * Modules
@@ -86,6 +89,8 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetModuleFileNameW( HMODULE module, LPWSTR filena
     ULONG_PTR magic;
     LDR_MODULE *pldr;
     WIN16_SUBSYSTEM_TIB *win16_tib;
+
+    if (wine_get_steamclient_path(module, filename, size, &len)) goto done;
 
     if (!module && ((win16_tib = NtCurrentTeb()->Tib.SubSystemTib)) && win16_tib->exe_name)
     {
@@ -188,6 +193,12 @@ BOOL WINAPI DECLSPEC_HOTPATCH GetModuleHandleExW( DWORD flags, LPCWSTR name, HMO
     else
     {
         UNICODE_STRING wstr;
+        HMODULE steamclient_hmod;
+        if ((steamclient_hmod = wine_get_steamclient_if_substr( name )))
+        {
+            *module = steamclient_hmod;
+            return TRUE;
+        }
         RtlInitUnicodeString( &wstr, name );
         status = LdrGetDllHandle( NULL, 0, &wstr, &ret );
     }
