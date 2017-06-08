@@ -2681,6 +2681,7 @@ HKLM,%CurrentVersion%\Telephony\Country List\998,"SameAreaRule",,"G"
 11,,explorer.exe
 11,,iexplore.exe
 11,,notepad.exe
+11,,win32k.sys
 11,,winetest.exe,-
 ; skip .NET fake dlls in Wine Mono package
 11,,aspnet_regiis.exe,-
