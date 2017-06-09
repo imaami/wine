@@ -37,6 +37,7 @@
 WINE_DEFAULT_DEBUG_CHANNEL(module);
 
 extern HMODULE CDECL wine_get_steamclient_if_substr( LPCWSTR str );
+extern HMODULE CDECL wine_get_steamclient_if_lsteamclient( HMODULE module );
 extern BOOL CDECL wine_get_steamclient_path( HMODULE module, LPWSTR dest,
                                              DWORD size, ULONG *result_len );
 
@@ -188,7 +189,14 @@ BOOL WINAPI DECLSPEC_HOTPATCH GetModuleHandleExW( DWORD flags, LPCWSTR name, HMO
     else if (flags & GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS)
     {
         void *dummy;
-        if (!(ret = RtlPcToFileHeader( (void *)name, &dummy ))) status = STATUS_DLL_NOT_FOUND;
+        if (!(ret = RtlPcToFileHeader( (void *)name, &dummy )))
+        {
+            status = STATUS_DLL_NOT_FOUND;
+        }
+        else if ((dummy = wine_get_steamclient_if_lsteamclient(ret)))
+        {
+            ret = dummy;
+        }
     }
     else
     {

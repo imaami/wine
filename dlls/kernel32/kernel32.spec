@@ -1687,4 +1687,5 @@
 
 # Steam client
 @ cdecl wine_get_steamclient_if_substr(wstr)
+@ cdecl wine_get_steamclient_if_lsteamclient(long)
 @ cdecl wine_get_steamclient_path(long ptr long ptr)

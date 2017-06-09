@@ -140,6 +140,13 @@ HMODULE CDECL wine_get_steamclient_if_substr( LPCWSTR str )
            : NULL;
 }
 
+HMODULE CDECL wine_get_steamclient_if_lsteamclient( HMODULE module )
+{
+    return (lsteamclient_hmod != NULL && module == lsteamclient_hmod)
+           ? steamclient_hmod
+           : NULL;
+}
+
 /****************************************************************************
  *              GetDllDirectoryA   (KERNEL32.@)
  */
