@@ -5349,6 +5349,37 @@ struct resume_process_reply
     struct reply_header __header;
 };
 
+enum esync_type
+{
+    ESYNC_SEMAPHORE = 1,
+    ESYNC_AUTO_EVENT,
+    ESYNC_MANUAL_EVENT,
+    ESYNC_MUTEX,
+    ESYNC_AUTO_SERVER,
+    ESYNC_MANUAL_SERVER,
+    ESYNC_QUEUE,
+};
+
+
+struct create_esync_request
+{
+    struct request_header __header;
+    unsigned int access;
+    int          initval;
+    int          type;
+    int          max;
+    /* VARARG(objattr,object_attributes); */
+    char __pad_28[4];
+};
+struct create_esync_reply
+{
+    struct reply_header __header;
+    obj_handle_t handle;
+    int          type;
+    unsigned int shm_idx;
+    char __pad_20[4];
+};
+
 
 enum request
 {
@@ -5626,6 +5657,7 @@ enum request
     REQ_terminate_job,
     REQ_suspend_process,
     REQ_resume_process,
+    REQ_create_esync,
     REQ_NB_REQUESTS
 };
 
@@ -5907,6 +5939,7 @@ union generic_request
     struct terminate_job_request terminate_job_request;
     struct suspend_process_request suspend_process_request;
     struct resume_process_request resume_process_request;
+    struct create_esync_request create_esync_request;
 };
 union generic_reply
 {
@@ -6186,11 +6219,12 @@ union generic_reply
     struct terminate_job_reply terminate_job_reply;
     struct suspend_process_reply suspend_process_reply;
     struct resume_process_reply resume_process_reply;
+    struct create_esync_reply create_esync_reply;
 };
 
 /* ### protocol_version begin ### */
 
-#define SERVER_PROTOCOL_VERSION 653
+#define SERVER_PROTOCOL_VERSION 654
 
 /* ### protocol_version end ### */
 
