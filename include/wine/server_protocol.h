@@ -5425,6 +5425,19 @@ struct create_esync_reply
 };
 
 
+struct get_esync_fd_request
+{
+    struct request_header __header;
+    obj_handle_t handle;
+};
+struct get_esync_fd_reply
+{
+    struct reply_header __header;
+    int          type;
+    unsigned int shm_idx;
+};
+
+
 enum request
 {
     REQ_new_process,
@@ -5702,6 +5715,7 @@ enum request
     REQ_resume_process,
     REQ_get_next_thread,
     REQ_create_esync,
+    REQ_get_esync_fd,
     REQ_NB_REQUESTS
 };
 
@@ -5984,6 +5998,7 @@ union generic_request
     struct resume_process_request resume_process_request;
     struct get_next_thread_request get_next_thread_request;
     struct create_esync_request create_esync_request;
+    struct get_esync_fd_request get_esync_fd_request;
 };
 union generic_reply
 {
@@ -6264,11 +6279,12 @@ union generic_reply
     struct resume_process_reply resume_process_reply;
     struct get_next_thread_reply get_next_thread_reply;
     struct create_esync_reply create_esync_reply;
+    struct get_esync_fd_reply get_esync_fd_reply;
 };
 
 /* ### protocol_version begin ### */
 
-#define SERVER_PROTOCOL_VERSION 700
+#define SERVER_PROTOCOL_VERSION 701
 
 /* ### protocol_version end ### */
 
