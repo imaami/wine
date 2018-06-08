@@ -82,6 +82,7 @@ static const struct object_ops console_ops =
     add_queue,                        /* add_queue */
     remove_queue,                     /* remove_queue */
     console_signaled,                 /* signaled */
+    NULL,                             /* get_esync_fd */
     no_satisfied,                     /* satisfied */
     no_signal,                        /* signal */
     console_get_fd,                   /* get_fd */
@@ -157,6 +158,7 @@ static const struct object_ops console_server_ops =
     add_queue,                        /* add_queue */
     remove_queue,                     /* remove_queue */
     console_server_signaled,          /* signaled */
+    NULL,                             /* get_esync_fd */
     no_satisfied,                     /* satisfied */
     no_signal,                        /* signal */
     console_server_get_fd,            /* get_fd */
@@ -225,6 +227,7 @@ static const struct object_ops screen_buffer_ops =
     screen_buffer_add_queue,          /* add_queue */
     NULL,                             /* remove_queue */
     NULL,                             /* signaled */
+    NULL,                             /* get_esync_fd */
     NULL,                             /* satisfied */
     no_signal,                        /* signal */
     screen_buffer_get_fd,             /* get_fd */
@@ -274,6 +277,7 @@ static const struct object_ops console_device_ops =
     no_add_queue,                     /* add_queue */
     NULL,                             /* remove_queue */
     NULL,                             /* signaled */
+    NULL,                             /* get_esync_fd */
     no_satisfied,                     /* satisfied */
     no_signal,                        /* signal */
     no_get_fd,                        /* get_fd */
@@ -311,6 +315,7 @@ static const struct object_ops console_input_ops =
     console_input_add_queue,          /* add_queue */
     NULL,                             /* remove_queue */
     NULL,                             /* signaled */
+    NULL,                             /* get_esync_fd */
     no_satisfied,                     /* satisfied */
     no_signal,                        /* signal */
     console_input_get_fd,             /* get_fd */
@@ -367,6 +372,7 @@ static const struct object_ops console_output_ops =
     console_output_add_queue,         /* add_queue */
     NULL,                             /* remove_queue */
     NULL,                             /* signaled */
+    NULL,                             /* get_esync_fd */
     no_satisfied,                     /* satisfied */
     no_signal,                        /* signal */
     console_output_get_fd,            /* get_fd */
@@ -424,6 +430,7 @@ static const struct object_ops console_connection_ops =
     no_add_queue,                     /* add_queue */
     NULL,                             /* remove_queue */
     NULL,                             /* signaled */
+    NULL,                             /* get_esync_fd */
     no_satisfied,                     /* satisfied */
     no_signal,                        /* signal */
     console_connection_get_fd,        /* get_fd */
