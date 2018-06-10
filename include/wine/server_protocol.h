@@ -5790,13 +5790,15 @@ struct create_esync_request
     unsigned int access;
     int          initval;
     int          flags;
+    int          type;
     /* VARARG(objattr,object_attributes); */
+    char __pad_28[4];
 };
 struct create_esync_reply
 {
     struct reply_header __header;
     obj_handle_t handle;
-    char __pad_12[4];
+    int          type;
 };
 
 
@@ -6736,6 +6738,6 @@ union generic_reply
     struct get_esync_fd_reply get_esync_fd_reply;
 };
 
-#define SERVER_PROTOCOL_VERSION 592
+#define SERVER_PROTOCOL_VERSION 593
 
 #endif /* __WINE_WINE_SERVER_PROTOCOL_H */
