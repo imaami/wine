@@ -168,6 +168,11 @@ BOOL fs_hack_matches_real_mode(int w, int h)
          h == dd_modes[realMode].height);
 }
 
+BOOL fs_hack_matches_last_mode(int w, int h)
+{
+    return w == fs_width && h == fs_height;
+}
+
 void fs_hack_scale_user_to_real(POINT *pos)
 {
     if(fs_hack_enabled()){
