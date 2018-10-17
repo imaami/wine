@@ -104,7 +104,7 @@ struct unix_funcs
     NTSTATUS      (CDECL *server_handle_to_fd)( HANDLE handle, unsigned int access, int *unix_fd,
                                                 unsigned int *options );
     void          (CDECL *server_release_fd)( HANDLE handle, int unix_fd );
-    void          (CDECL *server_init_process_done)( void *relay );
+    void          (CDECL *server_init_process_done)( void *relay, BOOL force_large_address_aware );
 
     /* file functions */
     NTSTATUS      (CDECL *nt_to_unix_file_name)( const UNICODE_STRING *nameW, char *nameA, SIZE_T *size,
