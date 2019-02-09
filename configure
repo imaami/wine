@@ -678,6 +678,8 @@ PULSE_CFLAGS
 GETTEXTPO_LIBS
 FREETYPE_LIBS
 FREETYPE_CFLAGS
+GTK3_LIBS
+GTK3_CFLAGS
 LCMS2_LIBS
 LCMS2_CFLAGS
 RESOLV_LIBS
@@ -863,6 +865,7 @@ with_gnutls
 with_gsm
 with_gssapi
 with_gstreamer
+with_gtk3
 with_hal
 with_inotify
 with_jpeg
@@ -1907,6 +1910,8 @@ GPHOTO2_PORT_CFLAGS
 GPHOTO2_PORT_LIBS
 LCMS2_CFLAGS
 LCMS2_LIBS
+GTK3_CFLAGS
+GTK3_LIBS
 FREETYPE_CFLAGS
 FREETYPE_LIBS
 PULSE_CFLAGS
@@ -2608,6 +2613,7 @@ Optional Packages:
   --without-gsm           do not use libgsm (GSM 06.10 codec support)
   --without-gssapi        do not use GSSAPI (Kerberos SSP support)
   --without-gstreamer     do not use GStreamer (codecs support)
+  --without-gtk3          do not use gtk3 (gtk3 theming support)
   --without-hal           do not use HAL (dynamic device support)
   --without-inotify       do not use inotify (filesystem change notifications)
   --without-jpeg          do not use JPEG
@@ -2699,6 +2705,8 @@ Some influential environment variables:
   LCMS2_CFLAGS
               C compiler flags for lcms2, overriding pkg-config
   LCMS2_LIBS  Linker flags for lcms2, overriding pkg-config
+  GTK3_CFLAGS C compiler flags for gtk+-3.0, overriding pkg-config
+  GTK3_LIBS   Linker flags for gtk+-3.0, overriding pkg-config
   FREETYPE_CFLAGS
               C compiler flags for freetype2, overriding pkg-config
   FREETYPE_LIBS
@@ -4035,6 +4043,12 @@ fi
 # Check whether --with-gstreamer was given.
 if test "${with_gstreamer+set}" = set; then :
   withval=$with_gstreamer;
+fi
+
+
+# Check whether --with-gtk3 was given.
+if test "${with_gtk3+set}" = set; then :
+  withval=$with_gtk3;
 fi
 
 
@@ -14442,6 +14456,216 @@ esac
 
 fi
 
+if test "x$with_gtk3" != "xno";
+then
+    if ${GTK3_CFLAGS:+false} :; then :
+  if ${PKG_CONFIG+:} false; then :
+  GTK3_CFLAGS=`$PKG_CONFIG --cflags gtk+-3.0 2>/dev/null`
+fi
+fi
+
+if ${GTK3_LIBS:+false} :; then :
+  if ${PKG_CONFIG+:} false; then :
+  GTK3_LIBS=`$PKG_CONFIG --libs gtk+-3.0 2>/dev/null`
+fi
+fi
+
+
+$as_echo "$as_me:${as_lineno-$LINENO}: gtk+-3.0 cflags: $GTK3_CFLAGS" >&5
+$as_echo "$as_me:${as_lineno-$LINENO}: gtk+-3.0 libs: $GTK3_LIBS" >&5
+ac_save_CPPFLAGS=$CPPFLAGS
+CPPFLAGS="$CPPFLAGS $GTK3_CFLAGS"
+for ac_header in gtk/gtk.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "gtk/gtk.h" "ac_cv_header_gtk_gtk_h" "$ac_includes_default"
+if test "x$ac_cv_header_gtk_gtk_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_GTK_GTK_H 1
+_ACEOF
+
+fi
+
+done
+
+        if test "$ac_cv_header_gtk_gtk_h" = "yes"
+        then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lgobject-2.0" >&5
+$as_echo_n "checking for -lgobject-2.0... " >&6; }
+if ${ac_cv_lib_soname_gobject_2_0+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lgobject-2.0 $GTK3_LIBS $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char g_object_unref ();
+int
+main ()
+{
+return g_object_unref ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_gobject_2_0=`$ac_cv_path_LDD conftest.exe | grep "gobject-2.0" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_gobject_2_0=`$OTOOL -L conftest$ac_exeext | grep "libgobject-2.0\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libgobject-2.0\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_gobject_2_0=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libgobject-2.0\\.$LIBEXT" | sed -e "s/^.*\\[\\(libgobject-2.0\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_gobject_2_0:+false} :; then :
+  ac_cv_lib_soname_gobject_2_0=`$LDD conftest$ac_exeext | grep "libgobject-2.0\\.$LIBEXT" | sed -e "s/^.*\(libgobject-2.0\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+else
+  ac_cv_lib_soname_gobject_2_0=
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_gobject_2_0:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_gobject_2_0" >&5
+$as_echo "$ac_cv_lib_soname_gobject_2_0" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBGOBJECT_2_0 "$ac_cv_lib_soname_gobject_2_0"
+_ACEOF
+
+       { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lcairo" >&5
+$as_echo_n "checking for -lcairo... " >&6; }
+if ${ac_cv_lib_soname_cairo+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lcairo  $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char cairo_destroy ();
+int
+main ()
+{
+return cairo_destroy ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_cairo=`$ac_cv_path_LDD conftest.exe | grep "cairo" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_cairo=`$OTOOL -L conftest$ac_exeext | grep "libcairo\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libcairo\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_cairo=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libcairo\\.$LIBEXT" | sed -e "s/^.*\\[\\(libcairo\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_cairo:+false} :; then :
+  ac_cv_lib_soname_cairo=`$LDD conftest$ac_exeext | grep "libcairo\\.$LIBEXT" | sed -e "s/^.*\(libcairo\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+else
+  ac_cv_lib_soname_cairo=
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_cairo:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_cairo" >&5
+$as_echo "$ac_cv_lib_soname_cairo" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBCAIRO "$ac_cv_lib_soname_cairo"
+_ACEOF
+
+       { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lgtk-3" >&5
+$as_echo_n "checking for -lgtk-3... " >&6; }
+if ${ac_cv_lib_soname_gtk_3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_soname_save_LIBS=$LIBS
+LIBS="-lgtk-3  $LIBS"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char gtk_style_context_save ();
+int
+main ()
+{
+return gtk_style_context_save ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  case "$LIBEXT" in
+    dll) ac_cv_lib_soname_gtk_3=`$ac_cv_path_LDD conftest.exe | grep "gtk-3" | sed -e "s/dll.*/dll/"';2,$d'` ;;
+    dylib) ac_cv_lib_soname_gtk_3=`$OTOOL -L conftest$ac_exeext | grep "libgtk-3\\.[0-9A-Za-z.]*dylib" | sed -e "s/^.*\/\(libgtk-3\.[0-9A-Za-z.]*dylib\).*$/\1/"';2,$d'` ;;
+    *) ac_cv_lib_soname_gtk_3=`$READELF -d conftest$ac_exeext | grep "NEEDED.*libgtk-3\\.$LIBEXT" | sed -e "s/^.*\\[\\(libgtk-3\\.$LIBEXT[^	 ]*\\)\\].*$/\1/"';2,$d'`
+       if ${ac_cv_lib_soname_gtk_3:+false} :; then :
+  ac_cv_lib_soname_gtk_3=`$LDD conftest$ac_exeext | grep "libgtk-3\\.$LIBEXT" | sed -e "s/^.*\(libgtk-3\.$LIBEXT[^	 ]*\).*$/\1/"';2,$d'`
+fi ;;
+  esac
+else
+  ac_cv_lib_soname_gtk_3=
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+  LIBS=$ac_check_soname_save_LIBS
+fi
+if ${ac_cv_lib_soname_gtk_3:+false} :; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not found" >&5
+$as_echo "not found" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_soname_gtk_3" >&5
+$as_echo "$ac_cv_lib_soname_gtk_3" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define SONAME_LIBGTK_3 "$ac_cv_lib_soname_gtk_3"
+_ACEOF
+
+
+fi
+fi
+fi
+        fi
+CPPFLAGS=$ac_save_CPPFLAGS
+
+fi
+if test "x$ac_cv_lib_soname_gtk_3" = x; then :
+  case "x$with_gtk3" in
+  x)   as_fn_append wine_notices "|GTK3 ${notice_platform}development files not found, GTK themes won't be supported." ;;
+  xno) ;;
+  *)   as_fn_error $? "GTK3 ${notice_platform}development files not found, GTK themes won't be supported.
+This is an error since --with-gtk3 was requested." "$LINENO" 5 ;;
+esac
+
+fi
+
 if test "x$with_freetype" != "xno"
 then
     if ${FREETYPE_CFLAGS:+false} :; then :
@@ -20352,6 +20576,8 @@ GPHOTO2_PORT_LIBS = $GPHOTO2_PORT_LIBS
 RESOLV_LIBS = $RESOLV_LIBS
 LCMS2_CFLAGS = $LCMS2_CFLAGS
 LCMS2_LIBS = $LCMS2_LIBS
+GTK3_CFLAGS = $GTK3_CFLAGS
+GTK3_LIBS = $GTK3_LIBS
 FREETYPE_CFLAGS = $FREETYPE_CFLAGS
 FREETYPE_LIBS = $FREETYPE_LIBS
 GETTEXTPO_LIBS = $GETTEXTPO_LIBS
