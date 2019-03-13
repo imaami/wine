@@ -6138,6 +6138,7 @@ NTSTATUS get_reparse_point(HANDLE handle, REPARSE_DATA_BUFFER *buffer, ULONG out
     int unix_dest_len;
     DWORD max_length;
     NTSTATUS status;
+    ULONG flags = 0;
     WCHAR *nt_dest;
     ssize_t ret;
     char *p;
@@ -6181,6 +6182,17 @@ NTSTATUS get_reparse_point(HANDLE handle, REPARSE_DATA_BUFFER *buffer, ULONG out
         }
         buffer->ReparseTag |= (val << i);
     }
+    /* skip past the directory/file flag */
+    if (buffer->ReparseTag == IO_REPARSE_TAG_SYMLINK)
+    {
+        char c = *p++;
+
+        if ((c != '/' && c != '.') || (c == '.' && *p++ != '/'))
+        {
+            status = STATUS_NOT_IMPLEMENTED;
+            goto cleanup;
+        }
+    }
     unix_dest_len -= (p - unix_dest);
     memmove(unix_dest, p, unix_dest_len);
     unix_dest[unix_dest_len] = 0;
@@ -6217,6 +6229,20 @@ NTSTATUS get_reparse_point(HANDLE handle, REPARSE_DATA_BUFFER *buffer, ULONG out
         print_name = &buffer->MountPointReparseBuffer.PathBuffer[buffer->MountPointReparseBuffer.PrintNameOffset/sizeof(WCHAR)];
         path_len += (nt_dest_len - prefix_len*sizeof(WCHAR)) + sizeof(WCHAR);
         total_len = FIELD_OFFSET(typeof(*buffer), MountPointReparseBuffer.PathBuffer[path_len/sizeof(WCHAR)]);
+        break;
+    case IO_REPARSE_TAG_SYMLINK:
+        max_length = out_size-FIELD_OFFSET(typeof(*buffer), SymbolicLinkReparseBuffer.PathBuffer[1]);
+        path_len = 0;
+        buffer->SymbolicLinkReparseBuffer.SubstituteNameOffset = path_len;
+        buffer->SymbolicLinkReparseBuffer.SubstituteNameLength = nt_dest_len;
+        path_len += nt_dest_len + sizeof(WCHAR);
+        subst_name = &buffer->SymbolicLinkReparseBuffer.PathBuffer[buffer->SymbolicLinkReparseBuffer.SubstituteNameOffset/sizeof(WCHAR)];
+        buffer->SymbolicLinkReparseBuffer.PrintNameOffset = path_len;
+        buffer->SymbolicLinkReparseBuffer.PrintNameLength = nt_dest_len - prefix_len*sizeof(WCHAR);
+        print_name = &buffer->SymbolicLinkReparseBuffer.PathBuffer[buffer->SymbolicLinkReparseBuffer.PrintNameOffset/sizeof(WCHAR)];
+        path_len += (nt_dest_len - prefix_len*sizeof(WCHAR)) + sizeof(WCHAR);
+        total_len = FIELD_OFFSET(typeof(*buffer), MountPointReparseBuffer.PathBuffer[path_len/sizeof(WCHAR)]);
+        buffer->SymbolicLinkReparseBuffer.Flags = flags;
         break;
     default:
         /* unrecognized (regular) files should probably be treated as symlinks */
