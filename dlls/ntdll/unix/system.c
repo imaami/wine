@@ -2360,6 +2360,47 @@ NTSTATUS WINAPI NtQuerySystemInformation( SYSTEM_INFORMATION_CLASS class,
         break;
     }
 
+    case SystemModuleInformationEx:
+    {
+        /* FIXME: return some fake info for now */
+        static const char *fake_modules[] =
+        {
+            "\\SystemRoot\\system32\\ntoskrnl.exe",
+            "\\SystemRoot\\system32\\hal.dll",
+            "\\SystemRoot\\system32\\drivers\\mountmgr.sys"
+        };
+
+        if (!info) ret = STATUS_ACCESS_VIOLATION;
+        else
+        {
+            ULONG i;
+
+            for (i = 0; i < ARRAY_SIZE(fake_modules); i++)
+            {
+                SYSTEM_MODULE_INFORMATION_EX *smi = (SYSTEM_MODULE_INFORMATION_EX *)((char *)info + len);
+
+                len += sizeof(SYSTEM_MODULE_INFORMATION_EX);
+                if (len > size)
+                {
+                    ret = STATUS_INFO_LENGTH_MISMATCH;
+                    continue;
+                }
+
+                memset(smi, 0, sizeof(*smi));
+                if (i < ARRAY_SIZE(fake_modules) - 1)
+                    smi->NextOffset = len;
+                smi->BaseInfo.ImageBaseAddress = (char *)0x10000000 + 0x200000 * i;
+                smi->BaseInfo.ImageSize = 0x200000;
+                smi->BaseInfo.LoadOrderIndex = i;
+                smi->BaseInfo.LoadCount = 1;
+                strcpy( (char *)smi->BaseInfo.Name, fake_modules[i] );
+                smi->BaseInfo.NameOffset = strrchr( fake_modules[i], '\\' ) - fake_modules[i] + 1;
+                smi->DefaultBase = smi->BaseInfo.ImageBaseAddress;
+            }
+        }
+        break;
+    }
+
     case SystemHandleInformation:
     {
         struct handle_info *handle_info;
