@@ -1511,6 +1511,27 @@ BOOL WINAPI DECLSPEC_HOTPATCH FindNextFileW( HANDLE handle, WIN32_FIND_DATAW *da
         memcpy( data->cFileName, dir_info->FileName, dir_info->FileNameLength );
         data->cFileName[dir_info->FileNameLength/sizeof(WCHAR)] = 0;
 
+        /* get reparse tag */
+        if (dir_info->FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+        {
+            REPARSE_DATA_BUFFER *buffer = NULL;
+            INT buffer_len;
+            HANDLE hlink;
+            DWORD dwret;
+            BOOL bret;
+
+            hlink = CreateFileW( data->cFileName, GENERIC_READ | GENERIC_WRITE, 0, 0,
+                                 OPEN_EXISTING,
+                                 FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, 0 );
+            buffer_len = sizeof(*buffer) + 2*MAX_PATH*sizeof(WCHAR);
+            buffer = HeapAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY, buffer_len );
+            bret = DeviceIoControl( hlink, FSCTL_GET_REPARSE_POINT, NULL, 0, (LPVOID)buffer,
+                                    buffer_len, &dwret, 0 );
+            if (bret) data->dwReserved0 = buffer->ReparseTag;
+            HeapFree( GetProcessHeap(), 0, buffer );
+            CloseHandle( hlink );
+        }
+
         if (info->level != FindExInfoBasic)
         {
             memcpy( data->cAlternateFileName, dir_info->ShortName, dir_info->ShortNameLength );
