@@ -400,6 +400,32 @@ static DIRECTORY_STACK *WCMD_list_directory (DIRECTORY_STACK *inputparms, int le
             WCMD_output(L"%1!*s!", cur_width - tmp_width, nullW);
         }
 
+      } else if (fd[i].dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
+        if (!bare) {
+           const WCHAR *type;
+
+           switch(fd[i].dwReserved0) {
+           case IO_REPARSE_TAG_MOUNT_POINT:
+              type = L"<JUNCTION>";
+              break;
+           case IO_REPARSE_TAG_SYMLINK:
+           default:
+              type = (fd[i].dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? L"<SYMLINKD>" : L"<SYMLINK>";
+              break;
+           }
+           WCMD_output (L"%1!10s!  %2!8s!  %3!-14s!", datestring, timestring, type);
+           if (shortname) WCMD_output (fmt2, fd[i].cAlternateFileName);
+           if (usernames) WCMD_output (fmt3, username);
+           WCMD_output(fmt4,fd[i].cFileName);
+        } else {
+           if (!((lstrcmpW(fd[i].cFileName, dotW) == 0) ||
+                 (lstrcmpW(fd[i].cFileName, dotdotW) == 0))) {
+              WCMD_output (fmt5, recurse?inputparms->dirName:nullW, fd[i].cFileName);
+           } else {
+              addNewLine = FALSE;
+           }
+        }
+
       } else if (fd[i].dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
         dir_count++;
 
