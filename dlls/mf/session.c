@@ -1522,7 +1522,8 @@ static HRESULT WINAPI mfsession_BeginGetEvent(IMFMediaSession *iface, IMFAsyncCa
 
     TRACE("%p, %p, %p.\n", iface, callback, state);
 
-    return IMFMediaEventQueue_BeginGetEvent(session->event_queue, callback, state);
+    return E_NOTIMPL;
+//    return IMFMediaEventQueue_BeginGetEvent(session->event_queue, callback, state);
 }
 
 static HRESULT WINAPI mfsession_EndGetEvent(IMFMediaSession *iface, IMFAsyncResult *result, IMFMediaEvent **event)
