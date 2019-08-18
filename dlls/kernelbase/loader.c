@@ -205,6 +205,8 @@ BOOL WINAPI DECLSPEC_HOTPATCH GetModuleHandleExW( DWORD flags, LPCWSTR name, HMO
         if ((steamclient_hmod = wine_get_steamclient_if_substr( name )))
         {
             *module = steamclient_hmod;
+            if (lock)
+                LdrUnlockLoaderLock( 0, magic );
             return TRUE;
         }
         RtlInitUnicodeString( &wstr, name );
