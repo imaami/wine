@@ -2583,7 +2583,7 @@ static void wined3d_cs_exec_user_callback(struct wined3d_cs *cs, const void *dat
     struct wined3d_context *context;
 
     context = context_acquire(cs->device, NULL, 0);
-    gl_info = context->gl_info;
+    gl_info = wined3d_context_gl(context)->gl_info;
 
     op->callback(op->data, op->data_size);
 
