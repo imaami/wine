@@ -2614,12 +2614,12 @@ static void wined3d_cs_exec_fence(struct wined3d_cs *cs, const void *data)
     GLsync fence;
 
     context = context_acquire(cs->device, NULL, 0);
-    gl_info = context->gl_info;
+    gl_info = wined3d_context_gl(context)->gl_info;
 
     wined3d_texture_load_location(op->texture, 0, context, WINED3D_LOCATION_TEXTURE_RGB);
 
     fence = GL_EXTCALL(glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0));
-    context->gl_info->gl_ops.gl.p_glFlush();
+    wined3d_context_gl(context)->gl_info->gl_ops.gl.p_glFlush();
 
     *op->fence = fence;
 
