@@ -2535,7 +2535,7 @@ static void wined3d_cs_exec_gl_texture_callback(struct wined3d_cs *cs, const voi
     struct wined3d_context *context;
 
     context = context_acquire(cs->device, NULL, 0);
-    gl_info = context->gl_info;
+    gl_info = wined3d_context_gl(context)->gl_info;
 
     wined3d_texture_load_location(&texture->t, 0, context, WINED3D_LOCATION_TEXTURE_RGB);
     if (depth_texture)
