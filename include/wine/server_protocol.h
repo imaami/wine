@@ -2726,6 +2726,7 @@ struct send_hardware_message_reply
     char __pad_28[4];
 };
 #define SEND_HWMSG_INJECTED    0x01
+#define SEND_HWMSG_RAWINPUT    0x02
 
 
 
@@ -6380,7 +6381,7 @@ union generic_reply
 
 /* ### protocol_version begin ### */
 
-#define SERVER_PROTOCOL_VERSION 708
+#define SERVER_PROTOCOL_VERSION 709
 
 /* ### protocol_version end ### */
 
