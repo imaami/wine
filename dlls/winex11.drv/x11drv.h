@@ -197,6 +197,8 @@ extern BOOL CDECL X11DRV_UnrealizePalette( HPALETTE hpal ) DECLSPEC_HIDDEN;
 extern void X11DRV_Xcursor_Init(void) DECLSPEC_HIDDEN;
 extern void x11drv_xinput_load(void) DECLSPEC_HIDDEN;
 extern void x11drv_xinput_init(void) DECLSPEC_HIDDEN;
+extern void x11drv_xinput_enable( Display *display, Window window, long event_mask ) DECLSPEC_HIDDEN;
+extern void x11drv_xinput_disable( Display *display, Window window, long event_mask ) DECLSPEC_HIDDEN;
 
 extern DWORD copy_image_bits( BITMAPINFO *info, BOOL is_r8g8b8, XImage *image,
                               const struct gdi_image_bits *src_bits, struct gdi_image_bits *dst_bits,
@@ -325,6 +327,14 @@ struct x11drv_valuator_data
     int number;
 };
 
+enum xi2_state
+{
+    xi_unavailable = -1,
+    xi_unknown,
+    xi_disabled,
+    xi_enabled
+};
+
 struct x11drv_thread_data
 {
     Display *display;
@@ -341,7 +351,7 @@ struct x11drv_thread_data
     HWND     clip_hwnd;            /* message window stored in desktop while clipping is active */
     DWORD    clip_reset;           /* time when clipping was last reset */
     HKL      kbd_layout;           /* active keyboard layout */
-    enum { xi_unavailable = -1, xi_unknown, xi_disabled, xi_enabled } xi2_state; /* XInput2 state */
+    enum xi2_state xi2_state;      /* XInput2 state */
     void    *xi2_devices;          /* list of XInput2 devices (valid when state is enabled) */
     int      xi2_device_count;
     struct x11drv_valuator_data x_rel_valuator;
