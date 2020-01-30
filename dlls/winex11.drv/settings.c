@@ -154,6 +154,14 @@ BOOL fs_hack_enabled(void)
         currentMode != realMode;
 }
 
+BOOL fs_hack_mapping_required(void)
+{
+    /* steamcompmgr does our mapping for us */
+    return !wm_is_steamcompmgr(NULL) &&
+        currentMode >= 0 &&
+        currentMode != realMode;
+}
+
 BOOL fs_hack_is_integer(void)
 {
     static int is_int = -1;
@@ -186,7 +194,7 @@ BOOL fs_hack_matches_last_mode(int w, int h)
 
 void fs_hack_scale_user_to_real(POINT *pos)
 {
-    if(fs_hack_enabled()){
+    if(fs_hack_mapping_required()){
         TRACE("from %d,%d\n", pos->x, pos->y);
         pos->x = lround(pos->x * fs_hack_user_to_real_w);
         pos->y = lround(pos->y * fs_hack_user_to_real_h);
@@ -196,7 +204,7 @@ void fs_hack_scale_user_to_real(POINT *pos)
 
 void fs_hack_scale_real_to_user(POINT *pos)
 {
-    if(fs_hack_enabled()){
+    if(fs_hack_mapping_required()){
         TRACE("from %d,%d\n", pos->x, pos->y);
         pos->x = lround(pos->x * fs_hack_real_to_user_w);
         pos->y = lround(pos->y * fs_hack_real_to_user_h);
@@ -214,7 +222,7 @@ POINT fs_hack_get_scaled_screen_size(void)
 
 void fs_hack_user_to_real(POINT *pos)
 {
-    if(fs_hack_enabled()){
+    if(fs_hack_mapping_required()){
         TRACE("from %d,%d\n", pos->x, pos->y);
         fs_hack_scale_user_to_real(pos);
         pos->x += offs_x;
@@ -225,7 +233,7 @@ void fs_hack_user_to_real(POINT *pos)
 
 void fs_hack_real_to_user(POINT *pos)
 {
-    if(fs_hack_enabled()){
+    if(fs_hack_mapping_required()){
         TRACE("from %d,%d\n", pos->x, pos->y);
 
         if(pos->x <= offs_x)
@@ -261,7 +269,7 @@ void fs_hack_rgndata_user_to_real(RGNDATA *data)
     unsigned int i;
     XRectangle *xrect;
 
-    if (data && fs_hack_enabled())
+    if (data && fs_hack_mapping_required())
     {
         xrect = (XRectangle *)data->Buffer;
         for (i = 0; i < data->rdh.nCount; i++)
