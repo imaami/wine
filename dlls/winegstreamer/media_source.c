@@ -92,6 +92,8 @@ struct source_async_command
 struct media_source
 {
     IMFMediaSource IMFMediaSource_iface;
+    IMFGetService IMFGetService_iface;
+    IMFSeekInfo IMFSeekInfo_iface;
     IMFAsyncCallback async_commands_callback;
     LONG ref;
     DWORD async_commands_queue;
@@ -122,6 +124,16 @@ static inline struct media_stream *impl_from_IMFMediaStream(IMFMediaStream *ifac
 static inline struct media_source *impl_from_IMFMediaSource(IMFMediaSource *iface)
 {
     return CONTAINING_RECORD(iface, struct media_source, IMFMediaSource_iface);
+}
+
+static inline struct media_source *impl_from_IMFGetService(IMFGetService *iface)
+{
+    return CONTAINING_RECORD(iface, struct media_source, IMFGetService_iface);
+}
+
+static inline struct media_source *impl_from_IMFSeekInfo(IMFSeekInfo *iface)
+{
+    return CONTAINING_RECORD(iface, struct media_source, IMFSeekInfo_iface);
 }
 
 static inline struct media_source *impl_from_async_commands_callback_IMFAsyncCallback(IMFAsyncCallback *iface)
@@ -518,6 +530,11 @@ static gboolean bytestream_query(GstPad *pad, GstObject *parent, GstQuery *query
             gst_query_add_scheduling_mode(query, GST_PAD_MODE_PULL);
             return TRUE;
         }
+        case GST_QUERY_LATENCY:
+        {
+            gst_query_set_latency(query, FALSE, 0, 0);
+            return TRUE;
+        }
         default:
         {
             WARN("Unhandled query type %s\n", GST_QUERY_TYPE_NAME(query));
@@ -580,6 +597,23 @@ GstBusSyncReply bus_watch(GstBus *bus, GstMessage *message, gpointer user)
             g_error_free(err);
             g_free(dbg_info);
             break;
+        case GST_MESSAGE_TAG:
+        {
+            GstTagList *tag_list;
+            gchar *printable;
+            gst_message_parse_tag(message, &tag_list);
+            if (tag_list)
+            {
+                printable = gst_tag_list_to_string(tag_list);
+                if (printable)
+                {
+                    TRACE("tag test: %s\n", debugstr_a(printable));
+                    g_free(printable);
+                }
+            }
+
+            break;
+        }
         default:
             break;
     }
@@ -1036,6 +1070,10 @@ static HRESULT WINAPI media_source_QueryInterface(IMFMediaSource *iface, REFIID 
     {
         *out = &source->IMFMediaSource_iface;
     }
+    else if(IsEqualIID(riid, &IID_IMFGetService))
+    {
+        *out = &source->IMFGetService_iface;
+    }
     else
     {
         FIXME("(%s, %p)\n", debugstr_guid(riid), out);
@@ -1120,7 +1158,7 @@ static HRESULT WINAPI media_source_GetCharacteristics(IMFMediaSource *iface, DWO
     if (source->state == SOURCE_SHUTDOWN)
         return MF_E_SHUTDOWN;
 
-    *characteristics = MFMEDIASOURCE_CAN_SEEK;
+    *characteristics = MFMEDIASOURCE_CAN_SEEK | MFMEDIASOURCE_CAN_PAUSE;
 
     return S_OK;
 }
@@ -1265,6 +1303,99 @@ static const IMFMediaSourceVtbl IMFMediaSource_vtbl =
     media_source_Shutdown,
 };
 
+static HRESULT WINAPI source_get_service_QueryInterface(IMFGetService *iface, REFIID riid, void **obj)
+{
+    struct media_source *source = impl_from_IMFGetService(iface);
+    return IMFMediaSource_QueryInterface(&source->IMFMediaSource_iface, riid, obj);
+}
+
+static ULONG WINAPI source_get_service_AddRef(IMFGetService *iface)
+{
+    struct media_source *source = impl_from_IMFGetService(iface);
+    return IMFMediaSource_AddRef(&source->IMFMediaSource_iface);
+}
+
+static ULONG WINAPI source_get_service_Release(IMFGetService *iface)
+{
+    struct media_source *source = impl_from_IMFGetService(iface);
+    return IMFMediaSource_Release(&source->IMFMediaSource_iface);
+}
+
+static HRESULT WINAPI source_get_service_GetService(IMFGetService *iface, REFGUID service, REFIID riid, void **obj)
+{
+    struct media_source *source = impl_from_IMFGetService(iface);
+
+    TRACE("(%p)->(%s, %s, %p)\n", source, debugstr_guid(service), debugstr_guid(riid), obj);
+
+    if (source->state == SOURCE_SHUTDOWN)
+        return MF_E_SHUTDOWN;
+
+    *obj = NULL;
+
+    if (IsEqualIID(service, &MF_SCRUBBING_SERVICE))
+    {
+        if (IsEqualIID(riid, &IID_IMFSeekInfo))
+        {
+            *obj = &source->IMFSeekInfo_iface;
+        }
+    }
+
+    if (*obj)
+        IUnknown_AddRef((IUnknown*) *obj);
+
+    return *obj ? S_OK : E_NOINTERFACE;
+}
+
+static const IMFGetServiceVtbl IMFGetService_vtbl =
+{
+    source_get_service_QueryInterface,
+    source_get_service_AddRef,
+    source_get_service_Release,
+    source_get_service_GetService,
+};
+
+static HRESULT WINAPI source_seek_info_QueryInterface(IMFSeekInfo *iface, REFIID riid, void **obj)
+{
+    struct media_source *source = impl_from_IMFSeekInfo(iface);
+    return IMFMediaSource_QueryInterface(&source->IMFMediaSource_iface, riid, obj);
+}
+
+static ULONG WINAPI source_seek_info_AddRef(IMFSeekInfo *iface)
+{
+    struct media_source *source = impl_from_IMFSeekInfo(iface);
+    return IMFMediaSource_AddRef(&source->IMFMediaSource_iface);
+}
+
+static ULONG WINAPI source_seek_info_Release(IMFSeekInfo *iface)
+{
+    struct media_source *source = impl_from_IMFSeekInfo(iface);
+    return IMFMediaSource_Release(&source->IMFMediaSource_iface);
+}
+
+static HRESULT WINAPI source_seek_info_GetNearestKeyFrames(IMFSeekInfo *iface, const GUID *format,
+        const PROPVARIANT *position, PROPVARIANT *prev_frame, PROPVARIANT *next_frame)
+{
+    struct media_source *source = impl_from_IMFSeekInfo(iface);
+
+    FIXME("(%p)->(%s, %p, %p, %p) - semi-stub\n", source, debugstr_guid(format), position, prev_frame, next_frame);
+
+    if (source->state == SOURCE_SHUTDOWN)
+        return MF_E_SHUTDOWN;
+
+    PropVariantCopy(prev_frame, position);
+    PropVariantCopy(next_frame, position);
+
+    return S_OK;
+}
+
+static const IMFSeekInfoVtbl IMFSeekInfo_vtbl =
+{
+    source_seek_info_QueryInterface,
+    source_seek_info_AddRef,
+    source_seek_info_Release,
+    source_seek_info_GetNearestKeyFrames,
+};
+
 /* If this callback is extended to use any significant win32 APIs, a wrapper function
    should be added */
 gboolean stream_found(GstElement *bin, GstPad *pad, GstCaps *caps, gpointer user)
@@ -1342,6 +1473,8 @@ static HRESULT media_source_constructor(IMFByteStream *bytestream, struct media_
         return E_OUTOFMEMORY;
 
     object->IMFMediaSource_iface.lpVtbl = &IMFMediaSource_vtbl;
+    object->IMFGetService_iface.lpVtbl = &IMFGetService_vtbl;
+    object->IMFSeekInfo_iface.lpVtbl = &IMFSeekInfo_vtbl;
     object->async_commands_callback.lpVtbl = &source_async_commands_callback_vtbl;
     object->ref = 1;
     object->byte_stream = bytestream;
@@ -1446,7 +1579,6 @@ static HRESULT media_source_constructor(IMFByteStream *bytestream, struct media_
     heap_free(descriptors);
     descriptors = NULL;
 
-    /* miscelaneous presentation descriptor setup */
     {
         IMFAttributes *byte_stream_attributes;
         gint64 total_pres_time = 0;
@@ -1463,6 +1595,7 @@ static HRESULT media_source_constructor(IMFByteStream *bytestream, struct media_
             IMFAttributes_Release(byte_stream_attributes);
         }
 
+        /* TODO: consider streams which don't start at T=0 */
         for (unsigned int i = 0; i < object->stream_count; i++)
         {
             GstQuery *query = gst_query_new_duration(GST_FORMAT_TIME);
