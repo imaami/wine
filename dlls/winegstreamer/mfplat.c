@@ -1239,3 +1239,93 @@ GstCaps *caps_from_mf_media_type(IMFMediaType *type)
     FIXME("Unrecognized major type %s\n", debugstr_guid(&major_type));
     return NULL;
 }
+
+/* IMFSample = GstBuffer
+   IMFBuffer = GstMemory */
+
+/* TODO: Future optimization could be to create a custom
+   IMFMediaBuffer wrapper around GstMemory, and to utilize
+   gst_memory_new_wrapped on IMFMediaBuffer data.  However,
+   this wouldn't work if we allow the callers to allocate
+   the buffers. */
+
+IMFSample* mf_sample_from_gst_buffer(GstBuffer *gst_buffer)
+{
+    IMFSample *out = NULL;
+    LONGLONG duration, time;
+    int buffer_count;
+    HRESULT hr;
+
+    if (FAILED(hr = MFCreateSample(&out)))
+        goto fail;
+
+    duration = GST_BUFFER_DURATION(gst_buffer);
+    time = GST_BUFFER_PTS(gst_buffer);
+
+    if (FAILED(IMFSample_SetSampleDuration(out, duration / 100)))
+        goto fail;
+
+    if (FAILED(IMFSample_SetSampleTime(out, time / 100)))
+        goto fail;
+
+    buffer_count = gst_buffer_n_memory(gst_buffer);
+
+    for (unsigned int i = 0; i < buffer_count; i++)
+    {
+        GstMemory *memory = gst_buffer_get_memory(gst_buffer, i);
+        IMFMediaBuffer *mf_buffer = NULL;
+        GstMapInfo map_info;
+        BYTE *buf_data;
+
+        if (!memory)
+        {
+            hr = E_FAIL;
+            goto loop_done;
+        }
+
+        if (!(gst_memory_map(memory, &map_info, GST_MAP_READ)))
+        {
+            hr = E_FAIL;
+            goto loop_done;
+        }
+
+        if (FAILED(hr = MFCreateMemoryBuffer(map_info.maxsize, &mf_buffer)))
+        {
+            gst_memory_unmap(memory, &map_info);
+            goto loop_done;
+        }
+
+        if (FAILED(hr = IMFMediaBuffer_Lock(mf_buffer, &buf_data, NULL, NULL)))
+        {
+            gst_memory_unmap(memory, &map_info);
+            goto loop_done;
+        }
+
+        memcpy(buf_data, map_info.data, map_info.size);
+
+        gst_memory_unmap(memory, &map_info);
+
+        if (FAILED(hr = IMFMediaBuffer_Unlock(mf_buffer)))
+            goto loop_done;
+
+        if (FAILED(hr = IMFMediaBuffer_SetCurrentLength(mf_buffer, map_info.size)))
+            goto loop_done;
+
+        if (FAILED(hr = IMFSample_AddBuffer(out, mf_buffer)))
+            goto loop_done;
+
+        loop_done:
+        if (mf_buffer)
+            IMFMediaBuffer_Release(mf_buffer);
+        if (memory)
+            gst_memory_unref(memory);
+        if (FAILED(hr))
+            goto fail;
+    }
+
+    return out;
+    fail:
+    ERR("Failed to copy IMFSample to GstBuffer, hr = %#x\n", hr);
+    IMFSample_Release(out);
+    return NULL;
+}
