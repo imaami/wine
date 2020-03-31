@@ -1445,6 +1445,46 @@ static HRESULT media_source_constructor(IMFByteStream *bytestream, struct media_
     heap_free(descriptors);
     descriptors = NULL;
 
+    /* miscelaneous presentation descriptor setup */
+    {
+        IMFAttributes *byte_stream_attributes;
+        gint64 total_pres_time = 0;
+
+        if (SUCCEEDED(IMFByteStream_QueryInterface(object->byte_stream, &IID_IMFAttributes, (void **)&byte_stream_attributes)))
+        {
+            WCHAR *mimeW = NULL;
+            DWORD length;
+            if (SUCCEEDED(IMFAttributes_GetAllocatedString(byte_stream_attributes, &MF_BYTESTREAM_CONTENT_TYPE, &mimeW, &length)))
+            {
+                IMFPresentationDescriptor_SetString(object->pres_desc, &MF_PD_MIME_TYPE, mimeW);
+                CoTaskMemFree(mimeW);
+            }
+            IMFAttributes_Release(byte_stream_attributes);
+        }
+
+        for (unsigned int i = 0; i < object->stream_count; i++)
+        {
+            GstQuery *query = gst_query_new_duration(GST_FORMAT_TIME);
+            if (gst_pad_query(object->streams[i]->their_src, query))
+            {
+                gint64 stream_pres_time;
+                gst_query_parse_duration(query, NULL, &stream_pres_time);
+
+                TRACE("Stream %u has duration %lu\n", i, stream_pres_time);
+
+                if (stream_pres_time > total_pres_time)
+                    total_pres_time = stream_pres_time;
+            }
+            else
+            {
+                WARN("Unable to get presentation time of stream %u\n", i);
+            }
+        }
+
+        if (object->stream_count)
+            IMFPresentationDescriptor_SetUINT64(object->pres_desc, &MF_PD_DURATION, total_pres_time / 100);
+    }
+
     object->state = SOURCE_STOPPED;
 
     *out_media_source = object;
