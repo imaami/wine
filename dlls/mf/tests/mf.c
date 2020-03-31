@@ -1451,7 +1451,6 @@ todo_wine
         return;
 
     hr = IMFMediaSource_CreatePresentationDescriptor(source, &pd);
-todo_wine
     ok(hr == S_OK, "Failed to create descriptor, hr %#x.\n", hr);
     if (FAILED(hr))
         return;
