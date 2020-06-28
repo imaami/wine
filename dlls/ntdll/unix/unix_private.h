@@ -177,6 +177,8 @@ extern NTSTATUS get_thread_context( HANDLE handle, context_t *context, unsigned 
 extern NTSTATUS alloc_object_attributes( const OBJECT_ATTRIBUTES *attr, struct object_attributes **ret,
                                          data_size_t *ret_len ) DECLSPEC_HIDDEN;
 
+extern void *steamclient_handle_fault( LPCVOID addr, DWORD err ) DECLSPEC_HIDDEN;
+
 extern void *anon_mmap_fixed( void *start, size_t size, int prot, int flags ) DECLSPEC_HIDDEN;
 extern void *anon_mmap_alloc( size_t size, int prot ) DECLSPEC_HIDDEN;
 extern void virtual_init(void) DECLSPEC_HIDDEN;
