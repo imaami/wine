@@ -2696,19 +2696,21 @@ TEB *virtual_alloc_first_teb(void)
     PEB *peb;
     void *ptr;
     NTSTATUS status;
-    SIZE_T data_size = page_size;
+    SIZE_T data_size = page_size * 2;
     SIZE_T peb_size = page_size * (is_win64 ? 1 : 2);
     SIZE_T block_size = signal_stack_mask + 1;
     SIZE_T total = 32 * block_size;
 
     /* reserve space for shared user data */
     status = NtAllocateVirtualMemory( NtCurrentProcess(), (void **)&user_shared_data, 0, &data_size,
-                                      MEM_RESERVE | MEM_COMMIT, PAGE_READONLY );
+                                      MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE );
     if (status)
     {
         ERR( "wine: failed to map the shared user data: %08x\n", status );
         exit(1);
     }
+
+    *((void **)((char *)user_shared_data + 0x1000)) = __wine_syscall_dispatcher;
 
     NtAllocateVirtualMemory( NtCurrentProcess(), &teb_block, 0, &total,
                              MEM_RESERVE | MEM_TOP_DOWN, PAGE_READWRITE );
