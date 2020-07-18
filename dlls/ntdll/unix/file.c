@@ -1989,7 +1989,7 @@ static NTSTATUS fill_file_info( const struct stat *st, ULONG attr, void *ptr,
 }
 
 
-static NTSTATUS server_get_unix_name( HANDLE handle, char **unix_name )
+static NTSTATUS server_get_unix_name( HANDLE handle, char **unix_name, BOOL nofollow )
 {
     data_size_t size = 1024;
     NTSTATUS ret;
@@ -2002,6 +2002,7 @@ static NTSTATUS server_get_unix_name( HANDLE handle, char **unix_name )
         SERVER_START_REQ( get_handle_unix_name )
         {
             req->handle = wine_server_obj_handle( handle );
+            req->nofollow = nofollow;
             wine_server_set_reply( req, name, size );
             ret = wine_server_call( req );
             size = reply->name_len;
@@ -2176,7 +2177,7 @@ static NTSTATUS get_mountmgr_fs_info( HANDLE handle, int fd, struct mountmgr_uni
     NTSTATUS status;
     int letter;
 
-    if ((status = server_get_unix_name( handle, &unix_name ))) return status;
+    if ((status = server_get_unix_name( handle, &unix_name, FALSE ))) return status;
     letter = find_dos_device( unix_name );
     free( unix_name );
 
@@ -4396,7 +4397,7 @@ NTSTATUS WINAPI NtQueryInformationFile( HANDLE handle, IO_STATUS_BLOCK *io,
             if (fd_get_file_info( fd, options, &st, &attr ) == -1) io->u.Status = errno_to_status( errno );
             else if (!S_ISREG(st.st_mode) && !S_ISDIR(st.st_mode))
                 io->u.Status = STATUS_INVALID_INFO_CLASS;
-            else if (!(io->u.Status = server_get_unix_name( handle, &unix_name )))
+            else if (!(io->u.Status = server_get_unix_name( handle, &unix_name, FALSE )))
             {
                 LONG name_len = len - FIELD_OFFSET(FILE_ALL_INFORMATION, NameInformation.FileName);
 
@@ -4457,7 +4458,7 @@ NTSTATUS WINAPI NtQueryInformationFile( HANDLE handle, IO_STATUS_BLOCK *io,
             FILE_NAME_INFORMATION *info = ptr;
             char *unix_name;
 
-            if (!(io->u.Status = server_get_unix_name( handle, &unix_name )))
+            if (!(io->u.Status = server_get_unix_name( handle, &unix_name, FALSE )))
             {
                 LONG name_len = len - FIELD_OFFSET(FILE_NAME_INFORMATION, FileName);
                 io->u.Status = fill_name_info( unix_name, info, &name_len );
@@ -4471,7 +4472,7 @@ NTSTATUS WINAPI NtQueryInformationFile( HANDLE handle, IO_STATUS_BLOCK *io,
             FILE_NETWORK_OPEN_INFORMATION *info = ptr;
             char *unix_name;
 
-            if (!(io->u.Status = server_get_unix_name( handle, &unix_name )))
+            if (!(io->u.Status = server_get_unix_name( handle, &unix_name, FALSE )))
             {
                 ULONG attributes;
                 struct stat st;
@@ -6066,7 +6067,7 @@ NTSTATUS create_reparse_point(HANDLE handle, REPARSE_DATA_BUFFER *buffer)
     if ((status = server_get_unix_fd( handle, FILE_SPECIAL_ACCESS, &dest_fd, &needs_close, NULL, NULL )))
         return status;
 
-    if ((status = server_get_unix_name( handle, &unix_src )))
+    if ((status = server_get_unix_name( handle, &unix_src, FALSE )))
         goto cleanup;
     src_allocated = TRUE;
     if (flags == SYMLINK_FLAG_RELATIVE)
@@ -6347,7 +6348,7 @@ NTSTATUS get_reparse_point(HANDLE handle, REPARSE_DATA_BUFFER *buffer, ULONG out
     if ((status = server_get_unix_fd( handle, FILE_ANY_ACCESS, &dest_fd, &needs_close, NULL, NULL )))
         return status;
 
-    if ((status = server_get_unix_name( handle, &unix_src )))
+    if ((status = server_get_unix_name( handle, &unix_src, TRUE )))
         goto cleanup;
 
     if ((status = get_symlink_properties( unix_src, unix_dest, &unix_dest_len, &buffer->ReparseTag,
@@ -6465,7 +6466,7 @@ NTSTATUS remove_reparse_point(HANDLE handle, REPARSE_GUID_DATA_BUFFER *buffer)
     if ((status = server_get_unix_fd( handle, FILE_SPECIAL_ACCESS, &dest_fd, &needs_close, NULL, NULL )))
         return status;
 
-    if ((status = server_get_unix_name( handle, &unix_name )))
+    if ((status = server_get_unix_name( handle, &unix_name, TRUE )))
         goto cleanup;
 
     TRACE( "Deleting symlink %s\n", unix_name );
@@ -7559,7 +7560,7 @@ NTSTATUS WINAPI NtQueryObject( HANDLE handle, OBJECT_INFORMATION_CLASS info_clas
 
         /* first try as a file object */
 
-        if (!(status = server_get_unix_name( handle, &unix_name )))
+        if (!(status = server_get_unix_name( handle, &unix_name, FALSE )))
         {
             if (!(status = unix_to_nt_file_name( unix_name, &nt_name )))
             {
