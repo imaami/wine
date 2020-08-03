@@ -128,6 +128,7 @@ enum alg_id
     ALG_ID_RSA,
 
     /* secret agreement */
+    ALG_ID_DH,
     ALG_ID_ECDH_P256,
 
     /* signature */
@@ -216,6 +217,8 @@ struct key_funcs
     NTSTATUS (CDECL *key_import_dsa_capi)( struct key *, UCHAR *, ULONG );
     NTSTATUS (CDECL *key_import_ecc)( struct key *, UCHAR *, ULONG );
     NTSTATUS (CDECL *key_compute_secret_ecc)( unsigned char *privkey_in, struct key *pubkey_in, struct secret *secret );
+    NTSTATUS (CDECL *key_export_dh)( struct key *, UCHAR *, ULONG, ULONG * );
+    NTSTATUS (CDECL *key_import_pair_dh)( struct key *, UCHAR *, ULONG );
 };
 
 struct key_funcs *gnutls_lib_init(DWORD reason);

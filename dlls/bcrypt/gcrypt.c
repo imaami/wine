@@ -260,7 +260,9 @@ static struct key_funcs key_funcs =
     NULL,
     NULL,
     NULL,
-    key_compute_secret_ecc
+    key_compute_secret_ecc,
+    NULL,
+    NULL
 };
 
 struct key_funcs * gcrypt_lib_init( DWORD reason )
