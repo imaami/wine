@@ -135,6 +135,18 @@ static NTSTATUS CDECL key_compute_secret_ecc (unsigned char *privkey_in, struct 
     return STATUS_NOT_IMPLEMENTED;
 }
 
+static NTSTATUS CDECL key_export_dh( struct key *key, UCHAR *buf, ULONG len, ULONG *ret_len )
+{
+    FIXME( "not implemented\n" );
+    return STATUS_NOT_IMPLEMENTED;
+}
+
+static NTSTATUS CDECL key_import_pair_dh( struct key *key, UCHAR *buf, ULONG len )
+{
+    FIXME( "not implemented\n" );
+    return STATUS_NOT_IMPLEMENTED;
+}
+
 static struct key_funcs key_funcs =
 {
     key_set_property,
@@ -155,7 +167,9 @@ static struct key_funcs key_funcs =
     key_export_ecc,
     key_import_dsa_capi,
     key_import_ecc,
-    key_compute_secret_ecc
+    key_compute_secret_ecc,
+    key_export_dh,
+    key_import_pair_dh
 };
 
 NTSTATUS CDECL __wine_init_unix_lib( HMODULE module, DWORD reason, const void *ptr_in, void *ptr_out )
@@ -193,6 +207,8 @@ NTSTATUS CDECL __wine_init_unix_lib( HMODULE module, DWORD reason, const void *p
         RESOLVE_FUNC(import_dsa_capi)
         RESOLVE_FUNC(import_ecc)
         RESOLVE_FUNC(compute_secret_ecc)
+        RESOLVE_FUNC(export_dh)
+        RESOLVE_FUNC(import_pair_dh)
 
 #undef RESOLVE_FUNC
 
