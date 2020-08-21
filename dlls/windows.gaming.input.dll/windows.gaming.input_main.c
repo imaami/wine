@@ -20,6 +20,90 @@ static const char *debugstr_hstring(HSTRING hstr)
     return wine_dbgstr_wn(str, len);
 }
 
+struct windows_gaming_input
+{
+    IActivationFactory IActivationFactory_iface;
+    LONG refcount;
+};
+
+static inline struct windows_gaming_input *impl_from_IActivationFactory(IActivationFactory *iface)
+{
+    return CONTAINING_RECORD(iface, struct windows_gaming_input, IActivationFactory_iface);
+}
+
+static HRESULT STDMETHODCALLTYPE windows_gaming_input_QueryInterface(
+        IActivationFactory *iface, REFIID iid, void **object)
+{
+    TRACE("iface %p, iid %s, object %p stub!\n", iface, debugstr_guid(iid), object);
+    *object = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG STDMETHODCALLTYPE windows_gaming_input_AddRef(
+        IActivationFactory *iface)
+{
+    struct windows_gaming_input *impl = impl_from_IActivationFactory(iface);
+    ULONG rc = InterlockedIncrement(&impl->refcount);
+    TRACE("%p increasing refcount to %u.\n", impl, rc);
+    return rc;
+}
+
+static ULONG STDMETHODCALLTYPE windows_gaming_input_Release(
+        IActivationFactory *iface)
+{
+    struct windows_gaming_input *impl = impl_from_IActivationFactory(iface);
+    ULONG rc = InterlockedDecrement(&impl->refcount);
+    TRACE("%p decreasing refcount to %u.\n", impl, rc);
+    return rc;
+}
+
+static HRESULT STDMETHODCALLTYPE windows_gaming_input_GetIids(
+        IActivationFactory *iface, ULONG *iid_count, IID **iids)
+{
+    FIXME("iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids);
+    return E_NOTIMPL;
+}
+
+static HRESULT STDMETHODCALLTYPE windows_gaming_input_GetRuntimeClassName(
+        IActivationFactory *iface, HSTRING *class_name)
+{
+    FIXME("iface %p, class_name %p stub!\n", iface, class_name);
+    return E_NOTIMPL;
+}
+
+static HRESULT STDMETHODCALLTYPE windows_gaming_input_GetTrustLevel(
+        IActivationFactory *iface, TrustLevel *trust_level)
+{
+    FIXME("iface %p, trust_level %p stub!\n", iface, trust_level);
+    return E_NOTIMPL;
+}
+
+static HRESULT STDMETHODCALLTYPE windows_gaming_input_ActivateInstance(
+        IActivationFactory *iface, IInspectable **instance)
+{
+    FIXME("iface %p, instance %p stub!\n", iface, instance);
+    return E_NOTIMPL;
+}
+
+static const struct IActivationFactoryVtbl activation_factory_vtbl =
+{
+    windows_gaming_input_QueryInterface,
+    windows_gaming_input_AddRef,
+    windows_gaming_input_Release,
+    /* IInspectable methods */
+    windows_gaming_input_GetIids,
+    windows_gaming_input_GetRuntimeClassName,
+    windows_gaming_input_GetTrustLevel,
+    /* IActivationFactory methods */
+    windows_gaming_input_ActivateInstance,
+};
+
+static struct windows_gaming_input windows_gaming_input =
+{
+    {&activation_factory_vtbl},
+    0
+};
+
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
 {
     TRACE("(%p, %u, %p)\n", instance, reason, reserved);
@@ -49,6 +133,8 @@ HRESULT WINAPI DllGetClassObject(REFCLSID clsid, REFIID riid, LPVOID *object)
 
 HRESULT WINAPI DllGetActivationFactory(HSTRING classid, IActivationFactory **factory)
 {
-    FIXME("classid %s, factory %p stub!\n", debugstr_hstring(classid), factory);
-    return E_NOINTERFACE;
+    TRACE("classid %s, factory %p.\n", debugstr_hstring(classid), factory);
+    *factory = &windows_gaming_input.IActivationFactory_iface;
+    IUnknown_AddRef(*factory);
+    return S_OK;
 }
