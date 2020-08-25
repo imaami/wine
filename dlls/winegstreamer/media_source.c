@@ -411,8 +411,22 @@ static HRESULT media_stream_align_with_mf(struct media_stream *stream)
         g_free(source_caps_str);
     }
 
-    if (!strcmp(gst_structure_get_name(gst_caps_get_structure(source_caps, 0)), "video/x-raw") ||
-        !strcmp(gst_structure_get_name(gst_caps_get_structure(source_caps, 0)), "audio/x-raw"))
+    if (!strcmp(gst_structure_get_name(gst_caps_get_structure(source_caps, 0)), "video/x-raw"))
+    {
+        GstElement *videoconvert = gst_element_factory_make("videoconvert", NULL);
+
+        gst_bin_add(GST_BIN(stream->parent_source->container), videoconvert);
+
+        stream->my_sink = gst_element_get_static_pad(videoconvert, "sink");
+
+        assert(gst_pad_link(stream->their_src, stream->my_sink) == GST_PAD_LINK_OK);
+        assert(gst_element_link(videoconvert, stream->appsink));
+
+        gst_element_sync_state_with_parent(videoconvert);
+
+        g_object_set(stream->appsink, "caps", source_caps, NULL);
+    }
+    else if(!strcmp(gst_structure_get_name(gst_caps_get_structure(source_caps, 0)), "audio/x-raw"))
     {
         stream->my_sink = gst_element_get_static_pad(stream->appsink, "sink");
         g_object_set(stream->appsink, "caps", source_caps, NULL);
@@ -550,37 +564,89 @@ static HRESULT media_stream_init_desc(struct media_stream *stream)
 {
     GstCaps *current_caps = gst_pad_get_current_caps(stream->their_src);
     IMFMediaTypeHandler *type_handler;
+    IMFMediaType **stream_types = NULL;
     IMFMediaType *stream_type = NULL;
+    DWORD type_count = 0;
+    unsigned int i;
     HRESULT hr;
 
-    if (strcmp(gst_structure_get_name(gst_caps_get_structure(current_caps, 0)), "video/x-raw") &&
-        strcmp(gst_structure_get_name(gst_caps_get_structure(current_caps, 0)), "audio/x-raw"))
+    if (!strcmp(gst_structure_get_name(gst_caps_get_structure(current_caps, 0)), "video/x-raw"))
     {
-        GstCaps *compatible_caps = make_mf_compatible_caps(current_caps);
-        stream_type = mf_media_type_from_caps(compatible_caps);
-        gst_caps_unref(compatible_caps);
+        GstElementFactory *videoconvert_factory = gst_element_factory_find("videoconvert");
+        /* output every format supported by videoconvert */
+        const GList *template_list = gst_element_factory_get_static_pad_templates(videoconvert_factory);
+        for (;template_list; template_list = template_list->next)
+        {
+            GstStaticPadTemplate *template = (GstStaticPadTemplate *)template_list->data;
+            GstCaps *src_caps;
+            GValueArray *formats;
+            if (template->direction != GST_PAD_SRC)
+                continue;
+            src_caps = gst_static_pad_template_get_caps(template);
+            gst_structure_get_list(gst_caps_get_structure(src_caps, 0), "format", &formats);
+            stream_types = heap_alloc( sizeof(IMFMediaType*) * formats->n_values );
+            for (i = 0; i < formats->n_values; i++)
+            {
+                GValue *format = g_value_array_get_nth(formats, i);
+                GstCaps *modified_caps = gst_caps_copy(current_caps);
+                gst_caps_set_value(modified_caps, "format", format);
+                stream_types[type_count] = mf_media_type_from_caps(modified_caps);
+                gst_caps_unref(modified_caps);
+                if (stream_types[type_count])
+                    type_count++;
+            }
+            g_value_array_free(formats);
+            gst_caps_unref(src_caps);
+            break;
+        }
+    }
+    else if (!strcmp(gst_structure_get_name(gst_caps_get_structure(current_caps, 0)), "audio/x-raw"))
+    {
+        stream_type = mf_media_type_from_caps(current_caps);
+        if (stream_type)
+        {
+            stream_types = &stream_type;
+            type_count = 1;
+        }
     }
     else
-        stream_type = mf_media_type_from_caps(current_caps);
+    {
+        GstCaps *compatible_caps = make_mf_compatible_caps(current_caps);
+        if (compatible_caps)
+        {
+            stream_type = mf_media_type_from_caps(compatible_caps);
+            gst_caps_unref(compatible_caps);
+            if (stream_type)
+            {
+                stream_types = &stream_type;
+                type_count = 1;
+            }
+        }
+    }
 
     gst_caps_unref(current_caps);
-    if (!stream_type)
+    if (!type_count)
+    {
+        ERR("Failed to establish an IMFMediaType from any of the possible stream caps!\n");
         return E_FAIL;
+    }
 
-    hr = MFCreateStreamDescriptor(stream->stream_id, 1, &stream_type, &stream->descriptor);
-
-    IMFMediaType_Release(stream_type);
-
-    if (FAILED(hr))
-        return hr;
+    if (FAILED(hr = MFCreateStreamDescriptor(stream->stream_id, type_count, stream_types, &stream->descriptor)))
+        goto done;
 
     if (FAILED(hr = IMFStreamDescriptor_GetMediaTypeHandler(stream->descriptor, &type_handler)))
-        return hr;
+        goto done;
 
-    hr = IMFMediaTypeHandler_SetCurrentMediaType(type_handler, stream_type);
+    if (FAILED(hr = IMFMediaTypeHandler_SetCurrentMediaType(type_handler, stream_types[0])))
+        goto done;
 
-    IMFMediaTypeHandler_Release(type_handler);
-
+done:
+    if (type_handler)
+        IMFMediaTypeHandler_Release(type_handler);
+    for (i = 0; i < type_count; i++)
+        IMFMediaType_Release(stream_types[i]);
+    if (stream_types != &stream_type)
+        heap_free(stream_types);
     return hr;
 }
 
