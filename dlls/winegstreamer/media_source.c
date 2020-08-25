@@ -428,9 +428,18 @@ static HRESULT media_stream_align_with_mf(struct media_stream *stream)
     }
     else if(!strcmp(gst_structure_get_name(gst_caps_get_structure(source_caps, 0)), "audio/x-raw"))
     {
-        stream->my_sink = gst_element_get_static_pad(stream->appsink, "sink");
-        g_object_set(stream->appsink, "caps", source_caps, NULL);
+        GstElement *audioconvert = gst_element_factory_make("audioconvert", NULL);
+
+        gst_bin_add(GST_BIN(stream->parent_source->container), audioconvert);
+
+        stream->my_sink = gst_element_get_static_pad(audioconvert, "sink");
+
         assert(gst_pad_link(stream->their_src, stream->my_sink) == GST_PAD_LINK_OK);
+        assert(gst_element_link(audioconvert, stream->appsink));
+
+        gst_element_sync_state_with_parent(audioconvert);
+
+        g_object_set(stream->appsink, "caps", source_caps, NULL);
     }
     else
     {
