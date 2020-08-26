@@ -51,6 +51,7 @@ type_t *make_type(enum type_type type)
     t->attrs = NULL;
     t->c_name = NULL;
     t->signature = NULL;
+    t->short_name = NULL;
     memset(&t->details, 0, sizeof(t->details));
     t->typestring_offset = 0;
     t->ptrdesc = 0;
@@ -281,6 +282,19 @@ static int format_parameterized_type_signature_buffer(char *buf, size_t len, typ
     return ret;
 }
 
+static int format_parameterized_type_short_name_buffer(char *buf, size_t len, type_t *type, type_list_t *params, const char *prefix)
+{
+    type_list_t *entry;
+    int ret = 0;
+    append_buf(snprintf, "%s%s", prefix, type->name);
+    for (entry = params; entry; entry = entry->next)
+    {
+        for (type = entry->type; type->type_type == TYPE_POINTER; type = type_pointer_get_ref_type(type)) {}
+        append_buf(snprintf, "_%s", type->name);
+    }
+    return ret;
+}
+
 #undef append_buf
 
 char *format_namespace(struct namespace *namespace, const char *prefix, const char *separator, const char *suffix, const char *abi_prefix)
@@ -337,6 +351,14 @@ static char *format_parameterized_type_signature(type_t *type, type_list_t *para
     int len = format_parameterized_type_signature_buffer(NULL, 0, type, params);
     char *buf = xmalloc(len + 1);
     format_parameterized_type_signature_buffer(buf, len + 1, type, params);
+    return buf;
+}
+
+static char *format_parameterized_type_short_name(type_t *type, type_list_t *params, const char *prefix)
+{
+    int len = format_parameterized_type_short_name_buffer(NULL, 0, type, params, prefix);
+    char *buf = xmalloc(len + 1);
+    format_parameterized_type_short_name_buffer(buf, len + 1, type, params, prefix);
     return buf;
 }
 
@@ -929,6 +951,7 @@ type_t *type_parameterized_type_specialize_declare(type_t *type, type_list_t *pa
     new_type->name = format_parameterized_type_name(type, params);
     reg_type(new_type, new_type->name, new_type->namespace, 0);
     new_type->c_name = format_parameterized_type_c_name(type, params, "");
+    new_type->short_name = format_parameterized_type_short_name(type, params, "");
 
     if (new_type->type_type == TYPE_DELEGATE)
     {
@@ -936,6 +959,7 @@ type_t *type_parameterized_type_specialize_declare(type_t *type, type_list_t *pa
         compute_delegate_iface_name(new_type);
         new_type->details.delegate.iface->namespace = new_type->namespace;
         new_type->details.delegate.iface->c_name = format_parameterized_type_c_name(type, params, "I");
+        new_type->details.delegate.iface->short_name = format_parameterized_type_short_name(type, params, "I");
     }
 
     return new_type;
