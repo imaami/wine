@@ -1031,6 +1031,7 @@ static HRESULT media_stream_init_desc(struct media_stream *stream)
 
     if (!strcmp(gst_structure_get_name(gst_caps_get_structure(current_caps, 0)), "video/x-raw"))
     {
+#ifdef HAVE_GST_STRUCTURE_GET_LIST
         GstElementFactory *videoconvert_factory = gst_element_factory_find("videoconvert");
         /* output every format supported by videoconvert */
         const GList *template_list = gst_element_factory_get_static_pad_templates(videoconvert_factory);
@@ -1058,6 +1059,7 @@ static HRESULT media_stream_init_desc(struct media_stream *stream)
             gst_caps_unref(src_caps);
             break;
         }
+#endif
     }
     else if (!strcmp(gst_structure_get_name(gst_caps_get_structure(current_caps, 0)), "audio/x-raw"))
     {

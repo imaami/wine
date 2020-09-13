@@ -285,6 +285,9 @@
 /* Define to 1 if you have the <gssapi/gssapi.h> header file. */
 #undef HAVE_GSSAPI_GSSAPI_H
 
+/* Define to 1 if you have the `gst_structure_get_list' function. */
+#undef HAVE_GST_STRUCTURE_GET_LIST
+
 /* Define to 1 if you have the <ieeefp.h> header file. */
 #undef HAVE_IEEEFP_H
 
