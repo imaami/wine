@@ -14661,6 +14661,21 @@ if test "x$ac_cv_lib_gstreamer_1_0_gst_pad_new" = xyes; then :
   :
 fi
 
+                 ac_wine_check_funcs_save_LIBS="$LIBS"
+LIBS="$LIBS $GSTREAMER_LIBS"
+for ac_func in gst_structure_get_list
+do :
+  ac_fn_c_check_func "$LINENO" "gst_structure_get_list" "ac_cv_func_gst_structure_get_list"
+if test "x$ac_cv_func_gst_structure_get_list" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_GST_STRUCTURE_GET_LIST 1
+_ACEOF
+
+fi
+done
+
+LIBS="$ac_wine_check_funcs_save_LIBS"
+
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
