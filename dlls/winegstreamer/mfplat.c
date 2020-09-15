@@ -602,6 +602,28 @@ IMFMediaType *mf_media_type_from_caps(const GstCaps *caps)
     return media_type;
 }
 
+GstCaps *make_mf_compatible_caps(GstCaps *caps)
+{
+    GstCaps *ret;
+    IMFMediaType *media_type;
+
+    if (gst_caps_get_size(caps) != 1)
+        return NULL;
+
+    ret = gst_caps_copy(caps);
+
+    if ((media_type = mf_media_type_from_caps(ret)))
+        IMFMediaType_Release(media_type);
+
+    if (!media_type)
+    {
+        gst_caps_unref(ret);
+        return NULL;
+    }
+
+    return ret;
+}
+
 GstCaps *caps_from_mf_media_type(IMFMediaType *type)
 {
     GUID major_type;
