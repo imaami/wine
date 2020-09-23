@@ -89,41 +89,37 @@ const char *type_get_name(const type_t *type, enum name_type name_type)
     return NULL;
 }
 
-static char *append_namespace(char *ptr, struct namespace *namespace, const char *separator)
-{
-    if(is_global_namespace(namespace)) {
-        if(!use_abi_namespace)
-            return ptr;
-        strcpy(ptr, "ABI");
-        strcat(ptr, separator);
-        return ptr + strlen(ptr);
-    }
+#define append_buf(f, ...) \
+   do { int r = f(buf + ret, max(ret, len) - ret, __VA_ARGS__); assert(r >= 0); ret += r; } while(0)
 
-    ptr = append_namespace(ptr, namespace->parent, separator);
-    strcpy(ptr, namespace->name);
-    strcat(ptr, separator);
-    return ptr + strlen(ptr);
+static int append_namespace(char *buf, size_t len, struct namespace *namespace, const char *separator, const char *abi_prefix)
+{
+    const char *name = namespace && !is_global_namespace(namespace) ? namespace->name : abi_prefix;
+    int ret = 0;
+    if (!name) return 0;
+    if (namespace && !is_global_namespace(namespace)) append_buf(append_namespace, namespace->parent, separator, abi_prefix);
+    append_buf(snprintf, "%s%s", name, separator);
+    return ret;
 }
 
-char *format_namespace(struct namespace *namespace, const char *prefix, const char *separator, const char *suffix)
+static int format_namespace_buffer(char *buf, size_t len, struct namespace *namespace, const char *prefix,
+                                   const char *separator, const char *suffix, const char *abi_prefix)
 {
-    unsigned len = strlen(prefix) + strlen(suffix);
-    unsigned sep_len = strlen(separator);
-    struct namespace *iter;
-    char *ret, *ptr;
-
-    if(use_abi_namespace && !is_global_namespace(namespace))
-        len += 3 /* strlen("ABI") */ + sep_len;
-
-    for(iter = namespace; !is_global_namespace(iter); iter = iter->parent)
-        len += strlen(iter->name) + sep_len;
-
-    ret = xmalloc(len+1);
-    strcpy(ret, prefix);
-    ptr = append_namespace(ret + strlen(ret), namespace, separator);
-    strcpy(ptr, suffix);
-
+    int ret = 0;
+    append_buf(snprintf, "%s", prefix);
+    append_buf(append_namespace, namespace, separator, abi_prefix);
+    append_buf(snprintf, "%s", suffix);
     return ret;
+}
+
+#undef append_buf
+
+char *format_namespace(struct namespace *namespace, const char *prefix, const char *separator, const char *suffix, const char *abi_prefix)
+{
+    int len = format_namespace_buffer(NULL, 0, namespace, prefix, separator, suffix, abi_prefix);
+    char *buf = xmalloc(len + 1);
+    format_namespace_buffer(buf, len + 1, namespace, prefix, separator, suffix, abi_prefix);
+    return buf;
 }
 
 type_t *type_new_function(var_list_t *args)
