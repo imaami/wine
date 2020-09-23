@@ -523,6 +523,13 @@ static unsigned int compute_method_indexes(type_t *iface)
     return idx;
 }
 
+static void compute_delegate_iface_name(type_t *delegate)
+{
+    char *name = xmalloc(strlen(delegate->name) + 2);
+    sprintf(name, "I%s", delegate->name);
+    delegate->details.delegate.iface->name = name;
+}
+
 static type_t *replace_type_parameters_in_type(type_t *type, type_list_t *orig, type_list_t *repl);
 
 static type_list_t *replace_type_parameters_in_type_list(type_list_t *type_list, type_list_t *orig, type_list_t *repl)
@@ -635,6 +642,7 @@ static type_t *replace_type_parameters_in_type(type_t *type, type_list_t *orig, 
     case TYPE_BITFIELD:
     case TYPE_INTERFACE:
     case TYPE_RUNTIMECLASS:
+    case TYPE_DELEGATE:
         return type;
     case TYPE_PARAMETER:
         for (o = orig, r = repl; o && r; o = o->next, r = r->next)
@@ -776,6 +784,27 @@ void type_interface_define(type_t *iface, type_t *inherit, statement_list_t *stm
     iface->details.iface->requires = requires;
     iface->defined = TRUE;
     compute_method_indexes(iface);
+}
+
+void type_delegate_define(type_t *delegate, statement_list_t *stmts)
+{
+    type_t *iface = make_type(TYPE_INTERFACE);
+
+    iface->namespace = delegate->namespace;
+    iface->details.iface = xmalloc(sizeof(*iface->details.iface));
+    iface->details.iface->disp_props = NULL;
+    iface->details.iface->disp_methods = NULL;
+    iface->details.iface->stmts = stmts;
+    iface->details.iface->inherit = find_type("IUnknown", NULL, 0);
+    if (!iface->details.iface->inherit) error_loc("IUnknown is undefined\n");
+    iface->details.iface->disp_inherit = NULL;
+    iface->details.iface->async_iface = NULL;
+    iface->details.iface->requires = NULL;
+    iface->defined = TRUE;
+    compute_method_indexes(iface);
+
+    delegate->details.delegate.iface = iface;
+    compute_delegate_iface_name(delegate);
 }
 
 void type_dispinterface_define(type_t *iface, var_list_t *props, var_list_t *methods)
