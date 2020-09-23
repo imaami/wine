@@ -32,3 +32,16 @@ namespace Windows {
         }
     }
 }
+
+namespace Windows {
+    namespace Media {
+        namespace SpeechSynthesis {
+            [contract(Windows.Foundation.UniversalApiContract, 1.0)]
+            enum VoiceGender
+            {
+                Male   = 0,
+                Female = 1
+            };
+        }
+    }
+}
