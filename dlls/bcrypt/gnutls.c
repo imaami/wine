@@ -1848,7 +1848,8 @@ static const struct key_funcs key_funcs =
     key_export_dsa_capi,
     key_export_ecc,
     key_import_dsa_capi,
-    key_import_ecc
+    key_import_ecc,
+    NULL
 };
 
 struct key_funcs * gnutls_lib_init( DWORD reason )
