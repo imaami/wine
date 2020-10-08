@@ -621,13 +621,10 @@ todo_wine
         hr = IMFMediaStream_RequestSample(video_stream, NULL);
         if (i == sample_count)
             break;
-todo_wine
         ok(hr == S_OK, "Failed to request sample %u, hr %#x.\n", i + 1, hr);
         if (hr != S_OK)
             break;
     }
-    if (FAILED(hr))
-        goto skip_source_tests;
 
     for (i = 0; i < sample_count; ++i)
     {
@@ -668,7 +665,6 @@ todo_wine
 
     get_event((IMFMediaEventGenerator *)mediasource, MEEndOfPresentation, NULL);
 
-skip_source_tests:
     IMFMediaStream_Release(video_stream);
     IMFMediaTypeHandler_Release(handler);
     IMFPresentationDescriptor_Release(descriptor);
