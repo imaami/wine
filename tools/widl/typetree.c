@@ -112,6 +112,22 @@ static int format_namespace_buffer(char *buf, size_t len, struct namespace *name
     return ret;
 }
 
+static int format_parameterized_type_name_buffer(char *buf, size_t len, type_t *type, type_list_t *params)
+{
+    type_list_t *entry;
+    int ret = 0;
+    append_buf(snprintf, "%s<", type->name);
+    for (entry = params; entry; entry = entry->next)
+    {
+        for (type = entry->type; type->type_type == TYPE_POINTER; type = type_pointer_get_ref_type(type)) {}
+        append_buf(format_namespace_buffer, type->namespace, "", "::", type->name, use_abi_namespace ? "ABI" : NULL);
+        for (type = entry->type; type->type_type == TYPE_POINTER; type = type_pointer_get_ref_type(type)) append_buf(snprintf, "*");
+        if (entry->next) append_buf(snprintf, ",");
+    }
+    append_buf(snprintf, ">");
+    return ret;
+}
+
 #undef append_buf
 
 char *format_namespace(struct namespace *namespace, const char *prefix, const char *separator, const char *suffix, const char *abi_prefix)
@@ -119,6 +135,14 @@ char *format_namespace(struct namespace *namespace, const char *prefix, const ch
     int len = format_namespace_buffer(NULL, 0, namespace, prefix, separator, suffix, abi_prefix);
     char *buf = xmalloc(len + 1);
     format_namespace_buffer(buf, len + 1, namespace, prefix, separator, suffix, abi_prefix);
+    return buf;
+}
+
+char *format_parameterized_type_name(type_t *type, type_list_t *params)
+{
+    int len = format_parameterized_type_name_buffer(NULL, 0, type, params);
+    char *buf = xmalloc(len + 1);
+    format_parameterized_type_name_buffer(buf, len + 1, type, params);
     return buf;
 }
 
@@ -457,6 +481,14 @@ static unsigned int compute_method_indexes(type_t *iface)
     }
 
     return idx;
+}
+
+type_t *type_parameterized_type_specialize_partial(type_t *type, type_list_t *params)
+{
+    type_t *new_type = duptype(type, 0);
+    new_type->details.parameterized.type = type;
+    new_type->details.parameterized.params = params;
+    return new_type;
 }
 
 void type_parameterized_interface_declare(type_t *type, type_list_t *params)
