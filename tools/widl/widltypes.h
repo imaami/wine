@@ -378,6 +378,7 @@ struct iface_details
   struct _type_t *inherit;
   struct _type_t *disp_inherit;
   struct _type_t *async_iface;
+  type_list_t *requires;
 };
 
 struct module_details
