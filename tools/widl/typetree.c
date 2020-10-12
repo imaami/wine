@@ -459,7 +459,7 @@ static unsigned int compute_method_indexes(type_t *iface)
     return idx;
 }
 
-void type_interface_define(type_t *iface, type_t *inherit, statement_list_t *stmts)
+void type_interface_define(type_t *iface, type_t *inherit, statement_list_t *stmts, type_list_t *requires)
 {
     iface->details.iface = xmalloc(sizeof(*iface->details.iface));
     iface->details.iface->disp_props = NULL;
@@ -468,6 +468,7 @@ void type_interface_define(type_t *iface, type_t *inherit, statement_list_t *stm
     iface->details.iface->inherit = inherit;
     iface->details.iface->disp_inherit = NULL;
     iface->details.iface->async_iface = NULL;
+    iface->details.iface->requires = requires;
     iface->defined = TRUE;
     compute_method_indexes(iface);
 }
@@ -482,6 +483,7 @@ void type_dispinterface_define(type_t *iface, var_list_t *props, var_list_t *met
     if (!iface->details.iface->inherit) error_loc("IDispatch is undefined\n");
     iface->details.iface->disp_inherit = NULL;
     iface->details.iface->async_iface = NULL;
+    iface->details.iface->requires = NULL;
     iface->defined = TRUE;
     compute_method_indexes(iface);
 }
@@ -496,6 +498,7 @@ void type_dispinterface_define_from_iface(type_t *dispiface, type_t *iface)
     if (!dispiface->details.iface->inherit) error_loc("IDispatch is undefined\n");
     dispiface->details.iface->disp_inherit = iface;
     dispiface->details.iface->async_iface = NULL;
+    dispiface->details.iface->requires = NULL;
     dispiface->defined = TRUE;
     compute_method_indexes(dispiface);
 }
