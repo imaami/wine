@@ -250,7 +250,7 @@ static void write_fields(FILE *h, var_list_t *fields)
         default:
             ;
         }
-        write_type_v(h, &v->declspec, TRUE, v->declonly, name, NAME_DEFAULT);
+        write_type_v(h, &v->declspec, TRUE, v->declonly, name, NAME_C);
         fprintf(h, ";\n");
     }
 }
@@ -322,7 +322,7 @@ void write_type_left(FILE *h, const decl_spec_t *ds, enum name_type name_type, i
   if ((ds->qualifier & TYPE_QUALIFIER_CONST) && (type_is_alias(t) || !is_ptr(t)))
     fprintf(h, "const ");
 
-  if (type_is_alias(t)) fprintf(h, "%s", t->name);
+  if (!winrt_mode && type_is_alias(t)) fprintf(h, "%s", t->name);
   else {
     switch (type_get_type_detect_alias(t)) {
       case TYPE_ENUM:
@@ -464,6 +464,13 @@ void write_type_left(FILE *h, const decl_spec_t *ds, enum name_type name_type, i
         break;
       }
       case TYPE_ALIAS:
+      {
+        const decl_spec_t *ds = type_alias_get_aliasee(t);
+        int in_namespace = ds && ds->type && ds->type->namespace && !is_global_namespace(ds->type->namespace);
+        if (!in_namespace) fprintf(h, "%s", t->name);
+        else write_type_left(h, ds, name_type, declonly, write_callconv);
+        break;
+      }
       case TYPE_APICONTRACT:
         /* handled elsewhere */
         assert(0);
@@ -807,7 +814,7 @@ static void write_generic_handle_routines(FILE *header)
 static void write_typedef(FILE *header, type_t *type, int declonly)
 {
   fprintf(header, "typedef ");
-  write_type_v(header, type_alias_get_aliasee(type), FALSE, declonly, type->name, NAME_DEFAULT);
+  write_type_v(header, type_alias_get_aliasee(type), FALSE, declonly, type->name, NAME_C);
   fprintf(header, ";\n");
 }
 
