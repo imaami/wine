@@ -813,6 +813,8 @@ static void write_generic_handle_routines(FILE *header)
 
 static void write_typedef(FILE *header, type_t *type, int declonly)
 {
+  type_t *t = type_alias_get_aliasee_type(type);
+  if (winrt_mode && t->namespace && !is_global_namespace(t->namespace)) return;
   fprintf(header, "typedef ");
   write_type_v(header, type_alias_get_aliasee(type), FALSE, declonly, type->name, NAME_C);
   fprintf(header, ";\n");
