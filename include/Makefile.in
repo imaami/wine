@@ -745,6 +745,7 @@ SOURCES = \
 	windows.foundation.idl \
 	windows.media.speechsynthesis.idl \
 	windows.h \
+	windowscontracts.idl \
 	windowsx.h \
 	wine/debug.h \
 	wine/exception.h \
