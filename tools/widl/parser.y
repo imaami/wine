@@ -176,7 +176,9 @@ static typelib_t *current_typelib;
 %token tAUTOHANDLE tBINDABLE tBOOLEAN tBROADCAST tBYTE tBYTECOUNT
 %token tCALLAS tCALLBACK tCASE tCDECL tCHAR tCOCLASS tCODE tCOMMSTATUS
 %token tCONST tCONTEXTHANDLE tCONTEXTHANDLENOSERIALIZE
-%token tCONTEXTHANDLESERIALIZE tCONTROL tCPPQUOTE
+%token tCONTEXTHANDLESERIALIZE
+%token tCONTRACTVERSION
+%token tCONTROL tCPPQUOTE
 %token tDECODE tDEFAULT tDEFAULTBIND
 %token tDEFAULTCOLLELEM
 %token tDEFAULTVALUE
@@ -288,6 +290,7 @@ static typelib_t *current_typelib;
 %type <declarator> m_abstract_declarator abstract_declarator abstract_declarator_no_direct abstract_direct_declarator
 %type <declarator_list> declarator_list struct_declarator_list
 %type <type> coclass coclasshdr coclassdef
+%type <num> contract_ver
 %type <num> pointer_type threading_type version
 %type <str> libraryhdr callconv cppquote importlib import t_ident
 %type <uuid> uuid_string
@@ -489,6 +492,11 @@ str_list: aSTRING                               { $$ = append_str( NULL, $1 ); }
 	| str_list ',' aSTRING                  { $$ = append_str( $1, $3 ); }
 	;
 
+contract_ver:
+	  aNUM					{ $$ = MAKEVERSION(0, $1); }
+	| aNUM '.' aNUM				{ $$ = MAKEVERSION($3, $1); }
+	;
+
 attribute:					{ $$ = NULL; }
 	| tAGGREGATABLE				{ $$ = make_attr(ATTR_AGGREGATABLE); }
 	| tANNOTATION '(' aSTRING ')'		{ $$ = make_attrp(ATTR_ANNOTATION, $3); }
@@ -504,6 +512,7 @@ attribute:					{ $$ = NULL; }
 	| tCONTEXTHANDLE			{ $$ = make_attrv(ATTR_CONTEXTHANDLE, 0); }
 	| tCONTEXTHANDLENOSERIALIZE		{ $$ = make_attrv(ATTR_CONTEXTHANDLE, 0); /* RPC_CONTEXT_HANDLE_DONT_SERIALIZE */ }
 	| tCONTEXTHANDLESERIALIZE		{ $$ = make_attrv(ATTR_CONTEXTHANDLE, 0); /* RPC_CONTEXT_HANDLE_SERIALIZE */ }
+	| tCONTRACTVERSION '(' contract_ver ')'	{ $$ = make_attrv(ATTR_CONTRACTVERSION, $3); }
 	| tCONTROL				{ $$ = make_attr(ATTR_CONTROL); }
 	| tDECODE				{ $$ = make_attr(ATTR_DECODE); }
 	| tDEFAULT				{ $$ = make_attr(ATTR_DEFAULT); }
@@ -2135,6 +2144,7 @@ struct allowed_attr allowed_attr[] =
     /* ATTR_CODE */                { 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "code" },
     /* ATTR_COMMSTATUS */          { 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "comm_status" },
     /* ATTR_CONTEXTHANDLE */       { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, "context_handle" },
+    /* ATTR_CONTRACTVERSION */     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "contractversion" },
     /* ATTR_CONTROL */             { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, "control" },
     /* ATTR_DECODE */              { 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, "decode" },
     /* ATTR_DEFAULT */             { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, "default" },
