@@ -220,6 +220,7 @@ static typelib_t *current_typelib;
 %token tMAYBE tMESSAGE
 %token tMETHODS
 %token tMODULE
+%token tMTA
 %token tNAMESPACE
 %token tNOCODE tNONBROWSABLE
 %token tNONCREATABLE
@@ -1150,6 +1151,7 @@ threading_type:
 	| tSINGLE				{ $$ = THREADING_SINGLE; }
 	| tFREE					{ $$ = THREADING_FREE; }
 	| tBOTH					{ $$ = THREADING_BOTH; }
+	| tMTA					{ $$ = THREADING_MTA; }
 	;
 
 pointer_type:
