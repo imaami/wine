@@ -68,6 +68,7 @@ typedef struct list warning_list_t;
 
 enum attr_type
 {
+    ATTR_ACTIVATABLE,
     ATTR_AGGREGATABLE,
     ATTR_ANNOTATION,
     ATTR_APPOBJECT,
