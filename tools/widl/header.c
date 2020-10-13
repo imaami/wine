@@ -464,6 +464,7 @@ void write_type_left(FILE *h, const decl_spec_t *ds, enum name_type name_type, i
         break;
       }
       case TYPE_ALIAS:
+      case TYPE_APICONTRACT:
         /* handled elsewhere */
         assert(0);
         break;
@@ -528,6 +529,10 @@ void write_type_right(FILE *h, type_t *t, int is_field)
   case TYPE_MODULE:
   case TYPE_COCLASS:
   case TYPE_INTERFACE:
+    break;
+  case TYPE_APICONTRACT:
+    /* not supposed to be here */
+    assert(0);
     break;
   }
 }
@@ -1446,6 +1451,14 @@ static void write_forward(FILE *header, type_t *iface)
   fprintf(header, "#endif\n\n" );
 }
 
+static char *format_apicontract_macro(const type_t *type)
+{
+    char *name = format_namespace(type->namespace, "", "_", type->name, NULL);
+    int i;
+    for (i = strlen(name); i > 0; --i) name[i - 1] = toupper(name[i - 1]);
+    return name;
+}
+
 static void write_com_interface_start(FILE *header, const type_t *iface)
 {
   int dispinterface = is_attr(iface->attrs, ATTR_DISPINTERFACE);
@@ -1610,6 +1623,15 @@ static void write_coclass_forward(FILE *header, type_t *cocl)
   fprintf(header, "#endif /* defined __%s_FWD_DEFINED__ */\n\n", cocl->name );
 }
 
+static void write_apicontract(FILE *header, type_t *apicontract)
+{
+    char *name = format_apicontract_macro(apicontract);
+    fprintf(header, "#if !defined(%s_VERSION)\n", name);
+    fprintf(header, "#define %s_VERSION %#x\n", name, get_attrv(apicontract->attrs, ATTR_CONTRACTVERSION));
+    fprintf(header, "#endif // defined(%s_VERSION)\n\n", name);
+    free(name);
+}
+
 static void write_import(FILE *header, const char *fname)
 {
   char *hname, *p;
@@ -1728,6 +1750,8 @@ static void write_header_stmts(FILE *header, const statement_list_t *stmts, cons
         }
         else if (type_get_type(stmt->u.type) == TYPE_COCLASS)
           write_coclass(header, stmt->u.type);
+        else if (type_get_type(stmt->u.type) == TYPE_APICONTRACT)
+          write_apicontract(header, stmt->u.type);
         else
         {
           write_type_definition(header, stmt->u.type, stmt->declonly);
