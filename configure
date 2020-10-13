@@ -1305,6 +1305,7 @@ enable_dsuiext
 enable_dswave
 enable_dwmapi
 enable_dwrite
+enable_dx7vb
 enable_dx8vb
 enable_dxapi_sys
 enable_dxdiagn
@@ -20721,6 +20722,7 @@ wine_fn_config_makefile dlls/dwmapi enable_dwmapi
 wine_fn_config_makefile dlls/dwmapi/tests enable_tests
 wine_fn_config_makefile dlls/dwrite enable_dwrite
 wine_fn_config_makefile dlls/dwrite/tests enable_tests
+wine_fn_config_makefile dlls/dx7vb enable_dx7vb
 wine_fn_config_makefile dlls/dx8vb enable_dx8vb
 wine_fn_config_makefile dlls/dxapi.sys enable_dxapi_sys
 wine_fn_config_makefile dlls/dxdiagn enable_dxdiagn
