@@ -433,6 +433,7 @@ enum type_type
     TYPE_POINTER,
     TYPE_ARRAY,
     TYPE_BITFIELD,
+    TYPE_APICONTRACT,
 };
 
 struct _type_t {
