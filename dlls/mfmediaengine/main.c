@@ -418,7 +418,10 @@ static HRESULT media_engine_create_topology(struct media_engine *engine, IMFMedi
             {
                 sd_video = sd;
                 IMFStreamDescriptor_AddRef(sd_video);
+                /* TODO: reintroduce this once we set up video stream nodes */
+#if 0
                 IMFPresentationDescriptor_SelectStream(pd, i);
+#endif
             }
 
             IMFMediaTypeHandler_Release(type_handler);
@@ -480,6 +483,9 @@ static HRESULT media_engine_create_topology(struct media_engine *engine, IMFMedi
             if (audio_src)
                 IMFTopologyNode_Release(audio_src);
         }
+
+        if (SUCCEEDED(hr))
+            hr = IMFMediaSession_SetTopology(engine->session, MFSESSION_SETTOPOLOGY_IMMEDIATE, topology);
     }
 
     if (topology)
