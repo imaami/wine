@@ -84,6 +84,7 @@ struct media_engine
     double default_playback_rate;
     double volume;
     double duration;
+    DWORD vid_width, vid_height;
     MF_MEDIA_ENGINE_ERR error_code;
     HRESULT extended_code;
     MF_MEDIA_ENGINE_READY ready_state;
@@ -432,12 +433,26 @@ static HRESULT media_engine_create_topology(struct media_engine *engine, IMFMedi
             }
             else if (IsEqualGUID(&major, &MFMediaType_Video) && !sd_video && !(engine->flags & MF_MEDIA_ENGINE_AUDIOONLY))
             {
+                IMFMediaType *video_type;
+                UINT64 frame_size;
+
                 sd_video = sd;
                 IMFStreamDescriptor_AddRef(sd_video);
                 /* TODO: reintroduce this once we set up video stream nodes */
 #if 0
                 IMFPresentationDescriptor_SelectStream(pd, i);
 #endif
+
+                engine->vid_width = 0;
+                engine->vid_height = 0;
+                if (SUCCEEDED(IMFMediaTypeHandler_GetCurrentMediaType(type_handler, &video_type)))
+                {
+                    if (SUCCEEDED(IMFMediaType_GetUINT64(video_type, &MF_MT_FRAME_SIZE, &frame_size)))
+                    {
+                        engine->vid_width = frame_size >> 32;
+                        engine->vid_height = frame_size;
+                    }
+                }
             }
 
             IMFMediaTypeHandler_Release(type_handler);
@@ -1136,9 +1151,20 @@ static BOOL WINAPI media_engine_HasAudio(IMFMediaEngine *iface)
 
 static HRESULT WINAPI media_engine_GetNativeVideoSize(IMFMediaEngine *iface, DWORD *cx, DWORD *cy)
 {
-    FIXME("(%p, %p, %p): stub.\n", iface, cx, cy);
+    struct media_engine *engine = impl_from_IMFMediaEngine(iface);
 
-    return E_NOTIMPL;
+    TRACE("(%p, %p, %p)\n", iface, cx, cy);
+
+    if (!(engine->flags & FLAGS_ENGINE_HAS_VIDEO))
+        return E_INVALIDARG;
+
+    if (!engine->vid_width || !engine->vid_height)
+        return E_FAIL;
+
+    *cx = engine->vid_width;
+    *cy = engine->vid_height;
+
+    return S_OK;
 }
 
 static HRESULT WINAPI media_engine_GetVideoAspectRatio(IMFMediaEngine *iface, DWORD *cx, DWORD *cy)
