@@ -36,6 +36,13 @@
 #include "wine/debug.h"
 #include "ntdll_misc.h"
 
+WINE_DEFAULT_DEBUG_CHANNEL(sync);
+
+static const char *debugstr_timeout( const LARGE_INTEGER *timeout )
+{
+    if (!timeout) return "(infinite)";
+    return wine_dbgstr_longlong( timeout->QuadPart );
+}
 
 /******************************************************************
  *              RtlRunOnceInitialize (NTDLL.@)
@@ -530,13 +537,111 @@ NTSTATUS WINAPI RtlSleepConditionVariableSRW( RTL_CONDITION_VARIABLE *variable, 
     return status;
 }
 
+
+#define FUTEX_ADDR_BLOCK_SIZE (65536 / sizeof(void *))
+static void **futex_addr_blocks[4096];
+
+static unsigned int tid_to_index( DWORD tid, unsigned int *block_idx )
+{
+    unsigned int idx = (tid >> 2) - 1;
+    *block_idx = idx / FUTEX_ADDR_BLOCK_SIZE;
+    return idx % FUTEX_ADDR_BLOCK_SIZE;
+}
+
+static HANDLE index_to_tid( unsigned int block_idx, unsigned int idx )
+{
+    return (HANDLE)((((block_idx * FUTEX_ADDR_BLOCK_SIZE) + idx) + 1) << 2);
+}
+
+static void **get_futex_entry( DWORD tid )
+{
+    unsigned int block_idx, idx = tid_to_index( tid, &block_idx );
+
+    if (block_idx > ARRAY_SIZE(futex_addr_blocks))
+    {
+        FIXME( "tid %#x is too high\n", tid );
+        return NULL;
+    }
+
+    if (!futex_addr_blocks[block_idx])
+    {
+        SIZE_T size = FUTEX_ADDR_BLOCK_SIZE * sizeof(void *);
+        void *ptr = NULL;
+
+        if (NtAllocateVirtualMemory( NtCurrentProcess(), &ptr, 0, &size, MEM_COMMIT, PAGE_READWRITE ))
+            return NULL;
+        if (InterlockedCompareExchangePointer( (void **)&futex_addr_blocks[block_idx], ptr, NULL ))
+            NtFreeVirtualMemory( NtCurrentProcess(), &ptr, &size, MEM_RELEASE ); /* someone beat us to it */
+    }
+
+    return &futex_addr_blocks[block_idx][idx % FUTEX_ADDR_BLOCK_SIZE];
+}
+
+static BOOL compare_addr( const void *addr, const void *cmp, SIZE_T size )
+{
+    switch (size)
+    {
+        case 1:
+            return (*(const UCHAR *)addr == *(const UCHAR *)cmp);
+        case 2:
+            return (*(const USHORT *)addr == *(const USHORT *)cmp);
+        case 4:
+            return (*(const ULONG *)addr == *(const ULONG *)cmp);
+        case 8:
+            return (*(const ULONG64 *)addr == *(const ULONG64 *)cmp);
+    }
+
+    return FALSE;
+}
+
 /***********************************************************************
  *           RtlWaitOnAddress   (NTDLL.@)
  */
 NTSTATUS WINAPI RtlWaitOnAddress( const void *addr, const void *cmp, SIZE_T size,
                                   const LARGE_INTEGER *timeout )
 {
-    return unix_funcs->RtlWaitOnAddress( addr, cmp, size, timeout );
+    void **entry = get_futex_entry( GetCurrentThreadId() );
+    NTSTATUS ret;
+
+    TRACE("addr %p cmp %p size %#Ix timeout %s\n", addr, cmp, size, debugstr_timeout( timeout ));
+
+    if (size != 1 && size != 2 && size != 4 && size != 8)
+        return STATUS_INVALID_PARAMETER;
+
+    if (!entry) return STATUS_NO_MEMORY;
+
+    InterlockedExchangePointer( entry, (void *)addr );
+
+    /* Ensure that the compare-and-swap above is ordered before the comparison
+     * below. This barrier is paired with another in RtlWakeByAddress*().
+     *
+     * In more detail, given the following sequence:
+     *
+     * Thread A                                 Thread B
+     * -----------------------------------------------------------------
+     * RtlWaitOnAddress( &val );                val = 1;
+     * queue thread                             RtlWakeByAddress( &val );
+     * MemoryBarrier(); <---- paired with ----> MemoryBarrier();
+     * compare_addr( &val );                    if (thread is queued)
+     *
+     * We must ensure that the thread is queued [through the above
+     * InterlockedExchangePointer()] before reading "val", and that writes to
+     * "val" by the application happen before we check for queued threads.
+     * Otherwise, thread A can deadlock: "val" may appear unchanged, while
+     * thread B observed that thread A was not queued.
+     */
+    MemoryBarrier();
+
+    if (!compare_addr( addr, cmp, size ))
+    {
+        InterlockedExchangePointer( entry, NULL );
+        return STATUS_SUCCESS;
+    }
+
+    ret = NtWaitForAlertByThreadId( NULL, timeout );
+    InterlockedExchangePointer( entry, NULL );
+    if (ret == STATUS_ALERTED) ret = STATUS_SUCCESS;
+    return ret;
 }
 
 /***********************************************************************
@@ -544,7 +649,29 @@ NTSTATUS WINAPI RtlWaitOnAddress( const void *addr, const void *cmp, SIZE_T size
  */
 void WINAPI RtlWakeAddressAll( const void *addr )
 {
-    return unix_funcs->RtlWakeAddressAll( addr );
+    unsigned int i, j;
+    void **block;
+
+    TRACE("%p\n", addr);
+
+    if (!addr) return;
+
+    /* Ensure that memory stores to "addr" are ordered before reading the
+     * array below. Paired with another barrier in RtlWaitOnAddress() [q.v.].
+     */
+    MemoryBarrier();
+
+    for (i = 0; i < ARRAY_SIZE(futex_addr_blocks); ++i)
+    {
+        block = futex_addr_blocks[i];
+        if (!block) continue;
+
+        for (j = 0; j < FUTEX_ADDR_BLOCK_SIZE; ++j)
+        {
+            if (block[j] == addr)
+                NtAlertThreadByThreadId( index_to_tid( i, j ) );
+        }
+    }
 }
 
 /***********************************************************************
@@ -552,5 +679,30 @@ void WINAPI RtlWakeAddressAll( const void *addr )
  */
 void WINAPI RtlWakeAddressSingle( const void *addr )
 {
-    return unix_funcs->RtlWakeAddressSingle( addr );
+    unsigned int i, j;
+    void **block;
+
+    TRACE("%p\n", addr);
+
+    if (!addr) return;
+
+    /* Ensure that memory stores to "addr" are ordered before reading the
+     * array below. Paired with another barrier in RtlWaitOnAddress() [q.v.].
+     */
+    MemoryBarrier();
+
+    for (i = 0; i < ARRAY_SIZE(futex_addr_blocks); ++i)
+    {
+        block = futex_addr_blocks[i];
+        if (!block) continue;
+
+        for (j = 0; j < FUTEX_ADDR_BLOCK_SIZE; ++j)
+        {
+            if (block[j] == addr && InterlockedCompareExchangePointer( &block[j], NULL, (void *)addr ) == addr)
+            {
+                NtAlertThreadByThreadId( index_to_tid( i, j ) );
+                return;
+            }
+        }
+    }
 }
