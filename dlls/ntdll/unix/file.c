@@ -1726,12 +1726,12 @@ static int get_file_info( const char *path, struct stat *st, ULONG *attr )
 }
 
 
-#if defined(__ANDROID__) && !defined(HAVE_FUTIMENS)
-static int futimens( int fd, const struct timespec spec[2] )
+#if !defined(HAVE_UTIMENSAT) && defined(__ANDROID__)
+static int utimensat( int fd, const char *name, const struct timespec spec[2], int flags )
 {
-    return syscall( __NR_utimensat, fd, NULL, spec, 0 );
+    return syscall( __NR_utimensat, fd, name, spec, flags );
 }
-#define HAVE_FUTIMENS
+#define HAVE_UTIMENSAT
 #endif  /* __ANDROID__ */
 
 #ifndef UTIME_OMIT
@@ -1741,7 +1741,7 @@ static int futimens( int fd, const struct timespec spec[2] )
 static BOOL set_file_times_precise( int fd, const LARGE_INTEGER *mtime,
                                     const LARGE_INTEGER *atime, NTSTATUS *status )
 {
-#ifdef HAVE_FUTIMENS
+#if defined(HAVE_FUTIMENS) || defined(HAVE_UTIMENSAT)
     struct timespec tv[2];
 
     tv[0].tv_sec = tv[1].tv_sec = 0;
@@ -1757,9 +1757,16 @@ static BOOL set_file_times_precise( int fd, const LARGE_INTEGER *mtime,
         tv[1].tv_nsec = (mtime->QuadPart % 10000000) * 100;
     }
 #ifdef __APPLE__
-    if (!&futimens) return FALSE;
+    if (!&utimensat) return FALSE;
 #endif
-    if (futimens( fd, tv ) == -1) *status = errno_to_status( errno );
+#if defined(HAVE_UTIMENSAT)
+    /* futimens does not work on O_PATH|O_NOFOLLOW (O_SYMLINK) file descriptors, so if the file
+     * descriptor is for a symlink then use utimensat with an empty path (.) and do not follow the
+     * link. Since this approach works for both symlinks and regular files, just use utimensat. */
+    if (utimensat(fd, ".", tv, AT_SYMLINK_NOFOLLOW) == -1) *status = errno_to_status( errno );
+#else
+    if (futimens(fd, tv) == -1) *status = errno_to_status( errno );
+#endif
     else *status = STATUS_SUCCESS;
     return TRUE;
 #else
