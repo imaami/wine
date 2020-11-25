@@ -1608,6 +1608,8 @@ static inline int get_file_xattr( char *hexattr, int attrlen )
 
 NTSTATUS FILE_DecodeSymlink(const char *unix_src, char *unix_dest, int *unix_dest_len,
                             DWORD *tag, ULONG *flags, BOOL *is_dir);
+NTSTATUS get_symlink_properties(const char *target, int len, char *unix_dest, int *unix_dest_len,
+                                DWORD *tag, ULONG *flags, BOOL *is_dir);
 
 /* fetch the attributes of a file */
 static inline ULONG get_file_attributes( const struct stat *st )
@@ -1644,6 +1646,23 @@ static int fd_get_file_info( int fd, unsigned int options, struct stat *st, ULON
     /* consider mount points to be reparse points (IO_REPARSE_TAG_MOUNT_POINT) */
     if ((options & FILE_OPEN_REPARSE_POINT) && fd_is_mount_point( fd, st ))
         *attr |= FILE_ATTRIBUTE_REPARSE_POINT;
+    if (S_ISLNK( st->st_mode ))
+    {
+        char path[MAX_PATH];
+        ssize_t len;
+        BOOL is_dir;
+
+        if ((len = readlinkat( fd, "", path, sizeof(path))) == -1) goto done;
+        path[len] = 0;
+        /* symbolic links (either junction points or NT symlinks) are "reparse points" */
+        *attr |= FILE_ATTRIBUTE_REPARSE_POINT;
+        /* symbolic links always report size 0 */
+        st->st_size = 0;
+        if (get_symlink_properties(path, len, NULL, NULL, NULL, NULL, &is_dir) == STATUS_SUCCESS)
+            st->st_mode = (st->st_mode & ~S_IFMT) | (is_dir ? S_IFDIR : S_IFREG);
+    }
+
+done:
     return ret;
 }
 
@@ -6247,16 +6266,66 @@ cleanup:
 }
 
 
+NTSTATUS get_symlink_properties(const char *target, int len, char *unix_dest, int *unix_dest_len,
+                                DWORD *tag, ULONG *flags, BOOL *is_dir)
+{
+    const char *p = target;
+    DWORD reparse_tag;
+    BOOL dir_flag;
+    int i;
+
+    /* Decode the reparse tag from the symlink */
+    if (*p == '.')
+    {
+        if (flags) *flags = SYMLINK_FLAG_RELATIVE;
+        p++;
+    }
+    if (*p++ != '/')
+        return STATUS_NOT_IMPLEMENTED;
+    reparse_tag = 0;
+    for (i = 0; i < sizeof(ULONG)*8; i++)
+    {
+        char c = *p++;
+        int val;
+
+        if (c == '/')
+            val = 0;
+        else if (c == '.' && *p++ == '/')
+            val = 1;
+        else
+            return STATUS_NOT_IMPLEMENTED;
+        reparse_tag |= (val << i);
+    }
+    /* skip past the directory/file flag */
+    if (reparse_tag == IO_REPARSE_TAG_SYMLINK)
+    {
+        char c = *p++;
+
+        if (c == '/')
+            dir_flag = FALSE;
+        else if (c == '.' && *p++ == '/')
+            dir_flag = TRUE;
+        else
+            return STATUS_NOT_IMPLEMENTED;
+    }
+    else
+        dir_flag = TRUE;
+    len -= (p - target);
+    if (tag) *tag = reparse_tag;
+    if (is_dir) *is_dir = dir_flag;
+    if (unix_dest) memmove(unix_dest, p, len + 1);
+    if (unix_dest_len) *unix_dest_len = len;
+    return STATUS_SUCCESS;
+}
+
+
 NTSTATUS FILE_DecodeSymlink(const char *unix_src, char *unix_dest, int *unix_dest_len,
                             DWORD *tag, ULONG *flags, BOOL *is_dir)
 {
     int len = MAX_PATH;
-    DWORD reparse_tag;
     NTSTATUS status;
-    BOOL dir_flag;
-    char *p, *tmp;
     ssize_t ret;
-    int i;
+    char *tmp;
 
     if (unix_dest_len) len = *unix_dest_len;
     if (!unix_dest)
@@ -6270,59 +6339,7 @@ NTSTATUS FILE_DecodeSymlink(const char *unix_src, char *unix_dest, int *unix_des
     }
     len = ret;
     tmp[len] = 0;
-
-    /* Decode the reparse tag from the symlink */
-    p = tmp;
-    if (*p == '.')
-    {
-        if (flags) *flags = SYMLINK_FLAG_RELATIVE;
-        p++;
-    }
-    if (*p++ != '/')
-    {
-        status = STATUS_NOT_IMPLEMENTED;
-        goto cleanup;
-    }
-    reparse_tag = 0;
-    for (i = 0; i < sizeof(ULONG)*8; i++)
-    {
-        char c = *p++;
-        int val;
-
-        if (c == '/')
-            val = 0;
-        else if (c == '.' && *p++ == '/')
-            val = 1;
-        else
-        {
-            status = STATUS_NOT_IMPLEMENTED;
-            goto cleanup;
-        }
-        reparse_tag |= (val << i);
-    }
-    /* skip past the directory/file flag */
-    if (reparse_tag == IO_REPARSE_TAG_SYMLINK)
-    {
-        char c = *p++;
-
-        if (c == '/')
-            dir_flag = FALSE;
-        else if (c == '.' && *p++ == '/')
-            dir_flag = TRUE;
-        else
-        {
-            status = STATUS_NOT_IMPLEMENTED;
-            goto cleanup;
-        }
-    }
-    else
-        dir_flag = TRUE;
-    len -= (p - tmp);
-    if (tag) *tag = reparse_tag;
-    if (is_dir) *is_dir = dir_flag;
-    if (unix_dest) memmove(unix_dest, p, len + 1);
-    if (unix_dest_len) *unix_dest_len = len;
-    status = STATUS_SUCCESS;
+    status = get_symlink_properties(tmp, len, unix_dest, unix_dest_len, tag, flags, is_dir);
 
 cleanup:
     if (!unix_dest) free( tmp );
