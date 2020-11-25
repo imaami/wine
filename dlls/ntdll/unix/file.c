@@ -1606,7 +1606,7 @@ static inline int get_file_xattr( char *hexattr, int attrlen )
     return 0;
 }
 
-NTSTATUS get_symlink_properties(const char *unix_src, char *unix_dest, int *unix_dest_len,
+NTSTATUS get_symlink_properties(int fd, const char *unix_src, char *unix_dest, int *unix_dest_len,
                                 DWORD *tag, ULONG *flags, BOOL *is_dir);
 
 /* fetch the attributes of a file */
@@ -1640,10 +1640,22 @@ static int fd_get_file_info( int fd, unsigned int options, struct stat *st, ULON
     *attr = 0;
     ret = fstat( fd, st );
     if (ret == -1) return ret;
-    *attr |= get_file_attributes( st );
     /* consider mount points to be reparse points (IO_REPARSE_TAG_MOUNT_POINT) */
     if ((options & FILE_OPEN_REPARSE_POINT) && fd_is_mount_point( fd, st ))
         *attr |= FILE_ATTRIBUTE_REPARSE_POINT;
+    if (S_ISLNK( st->st_mode ))
+    {
+        BOOL is_dir;
+
+        /* symbolic links (either junction points or NT symlinks) are "reparse points" */
+        *attr |= FILE_ATTRIBUTE_REPARSE_POINT;
+        /* symbolic links always report size 0 */
+        st->st_size = 0;
+        if (get_symlink_properties( fd, "", NULL, NULL, NULL, NULL, &is_dir ) == STATUS_SUCCESS)
+            st->st_mode = (st->st_mode & ~S_IFMT) | (is_dir ? S_IFDIR : S_IFREG);
+    }
+    *attr |= get_file_attributes( st );
+
     return ret;
 }
 
@@ -1702,7 +1714,7 @@ static int get_file_info( const char *path, struct stat *st, ULONG *attr )
         /* symbolic links (either junction points or NT symlinks) are "reparse points" */
         *attr |= FILE_ATTRIBUTE_REPARSE_POINT;
         /* whether a reparse point is a file or a directory is stored inside the link target */
-        if (get_symlink_properties( path, NULL, NULL, NULL, NULL, &is_dir ) == STATUS_SUCCESS)
+        if (get_symlink_properties( AT_FDCWD, path, NULL, NULL, NULL, NULL, &is_dir ) == STATUS_SUCCESS)
             st->st_mode = (st->st_mode & ~S_IFMT) | (is_dir ? S_IFDIR : S_IFREG);
     }
     else if (S_ISDIR( st->st_mode ) && (parent_path = malloc( strlen(path) + 4 )))
@@ -6249,7 +6261,7 @@ cleanup:
 }
 
 
-NTSTATUS get_symlink_properties(const char *unix_src, char *unix_dest, int *unix_dest_len,
+NTSTATUS get_symlink_properties(int fd, const char *unix_src, char *unix_dest, int *unix_dest_len,
                                 DWORD *tag, ULONG *flags, BOOL *is_dir)
 {
     int len = MAX_PATH;
@@ -6265,7 +6277,7 @@ NTSTATUS get_symlink_properties(const char *unix_src, char *unix_dest, int *unix
         tmp = malloc( len );
     else
         tmp = unix_dest;
-    if ((ret = readlink( unix_src, tmp, len )) < 0)
+    if ((ret = readlinkat( fd, unix_src, tmp, len )) < 0)
     {
         status = errno_to_status( errno );
         goto cleanup;
@@ -6356,8 +6368,8 @@ NTSTATUS get_reparse_point(HANDLE handle, REPARSE_DATA_BUFFER *buffer, ULONG out
     if ((status = server_get_unix_name( handle, &unix_src, TRUE )))
         goto cleanup;
 
-    if ((status = get_symlink_properties( unix_src, unix_dest, &unix_dest_len, &buffer->ReparseTag,
-                                          &flags, NULL )))
+    if ((status = get_symlink_properties( AT_FDCWD, unix_src, unix_dest, &unix_dest_len,
+                                          &buffer->ReparseTag, &flags, NULL )))
         goto cleanup;
 
     /* convert the relative path into an absolute path */
