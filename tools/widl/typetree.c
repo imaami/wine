@@ -142,16 +142,16 @@ static char const *parameterized_type_shorthands[][2] = {
     {"Windows_CFoundation_C", "__F"},
 };
 
-static char *format_parameterized_type_c_name(type_t *type, type_list_t *params)
+static char *format_parameterized_type_c_name(type_t *type, type_list_t *params, const char *prefix)
 {
     size_t len = 0, pos = 0;
     char *buf = NULL, *tmp;
     type_list_t *entry;
     int i, count = 0;
 
-    pos += append_namespaces(&buf, &len, pos, type->namespace, "__x_", "_C", type->name, use_abi_namespace ? "ABI" : NULL);
+    pos += append_namespaces(&buf, &len, pos, type->namespace, "__x_", "_C", "", use_abi_namespace ? "ABI" : NULL);
     for (entry = params; entry; entry = entry->next) count++;
-    pos += strappend(&buf, &len, pos, "_%d", count);
+    pos += strappend(&buf, &len, pos, "%s%s_%d", prefix, type->name, count);
     for (entry = params; entry; entry = entry->next)
     {
         for (type = entry->type; type->type_type == TYPE_POINTER; type = type_pointer_get_ref_type(type)) {}
@@ -688,6 +688,11 @@ static void type_parameterized_interface_specialize(type_t *tmpl, type_t *iface,
     iface->details.iface->requires = NULL;
 }
 
+static void type_parameterized_delegate_specialize(type_t *tmpl, type_t *delegate, type_list_t *orig, type_list_t *repl)
+{
+    type_parameterized_interface_specialize(tmpl->details.delegate.iface, delegate->details.delegate.iface, orig, repl);
+}
+
 type_t *type_parameterized_type_specialize_partial(type_t *type, type_list_t *params)
 {
     type_t *new_type = duptype(type, 0);
@@ -704,7 +709,15 @@ type_t *type_parameterized_type_specialize_declare(type_t *type, type_list_t *pa
     new_type->namespace = type->namespace;
     new_type->name = format_parameterized_type_name(type, params);
     reg_type(new_type, new_type->name, new_type->namespace, 0);
-    new_type->c_name = format_parameterized_type_c_name(type, params);
+    new_type->c_name = format_parameterized_type_c_name(type, params, "");
+
+    if (new_type->type_type == TYPE_DELEGATE)
+    {
+        new_type->details.delegate.iface = duptype(tmpl->details.delegate.iface, 0);
+        compute_delegate_iface_name(new_type);
+        new_type->details.delegate.iface->namespace = new_type->namespace;
+        new_type->details.delegate.iface->c_name = format_parameterized_type_c_name(type, params, "I");
+    }
 
     return new_type;
 }
@@ -717,6 +730,8 @@ type_t *type_parameterized_type_specialize_define(type_t *type, type_list_t *par
 
     if (tmpl->type_type == TYPE_INTERFACE)
         type_parameterized_interface_specialize(tmpl, iface, orig, params);
+    else if (tmpl->type_type == TYPE_DELEGATE)
+        type_parameterized_delegate_specialize(tmpl, iface, orig, params);
     else
     {
         error_loc("Unsupported parameterized type template %d\n", tmpl->type_type);
@@ -724,6 +739,11 @@ type_t *type_parameterized_type_specialize_define(type_t *type, type_list_t *par
     }
 
     iface->defined = TRUE;
+    if (iface->type_type == TYPE_DELEGATE)
+    {
+        iface = iface->details.delegate.iface;
+        iface->defined = TRUE;
+    }
     compute_method_indexes(iface);
     return iface;
 }
@@ -791,6 +811,28 @@ void type_delegate_define(type_t *delegate, statement_list_t *stmts)
 
     delegate->details.delegate.iface = iface;
     compute_delegate_iface_name(delegate);
+}
+
+void type_parameterized_delegate_define(type_t *type, type_list_t *params, statement_list_t *stmts)
+{
+    type_t *delegate = make_type(TYPE_DELEGATE);
+    type_t *iface = make_type(TYPE_INTERFACE);
+
+    type->type_type = TYPE_PARAMETERIZED_TYPE;
+    type->details.parameterized.type = delegate;
+    type->details.parameterized.params = params;
+
+    delegate->details.delegate.iface = iface;
+
+    iface->details.iface = xmalloc(sizeof(*iface->details.iface));
+    iface->details.iface->disp_props = NULL;
+    iface->details.iface->disp_methods = NULL;
+    iface->details.iface->stmts = stmts;
+    iface->details.iface->inherit = find_type("IUnknown", NULL, 0);
+    if (!iface->details.iface->inherit) error_loc("IUnknown is undefined\n");
+    iface->details.iface->disp_inherit = NULL;
+    iface->details.iface->async_iface = NULL;
+    iface->details.iface->requires = NULL;
 }
 
 void type_dispinterface_define(type_t *iface, var_list_t *props, var_list_t *methods)
