@@ -585,7 +585,7 @@ struct process *create_process( int fd, struct process *parent, unsigned int fla
     if (!parent)
     {
         process->handles = alloc_handle_table( process, 0 );
-        process->token = token_create_admin( TokenElevationTypeFull );
+        process->token = token_create_admin( TokenElevationTypeLimited );
         process->affinity = ~0;
     }
     else
