@@ -193,33 +193,7 @@ static void find_devices(void)
     }
     rawinput_devices_count = 0;
 
-    set = SetupDiGetClassDevsW(&hid_guid, NULL, NULL, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
-
-    for (idx = 0; SetupDiEnumDeviceInterfaces(set, NULL, &hid_guid, idx, &iface); ++idx)
-    {
-        if (!(device = add_device(set, &iface)))
-            continue;
-
-        attr.Size = sizeof(HIDD_ATTRIBUTES);
-        if (!HidD_GetAttributes(device->file, &attr))
-            WARN("Failed to get attributes.\n");
-
-        device->info.dwType = RIM_TYPEHID;
-        device->info.u.hid.dwVendorId = attr.VendorID;
-        device->info.u.hid.dwProductId = attr.ProductID;
-        device->info.u.hid.dwVersionNumber = attr.VersionNumber;
-
-        if (!HidD_GetPreparsedData(device->file, &device->data))
-            WARN("Failed to get preparsed data.\n");
-
-        if (!HidP_GetCaps(device->data, &caps))
-            WARN("Failed to get caps.\n");
-
-        device->info.u.hid.usUsagePage = caps.UsagePage;
-        device->info.u.hid.usUsage = caps.Usage;
-    }
-
-    SetupDiDestroyDeviceInfoList(set);
+    /* add mice and keyboards first so we won't add the duplicated HID devices */
 
     set = SetupDiGetClassDevsW(&GUID_DEVINTERFACE_MOUSE, NULL, NULL, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
 
@@ -247,6 +221,34 @@ static void find_devices(void)
 
         device->info.dwType = RIM_TYPEKEYBOARD;
         device->info.u.keyboard = keyboard_info;
+    }
+
+    SetupDiDestroyDeviceInfoList(set);
+
+    set = SetupDiGetClassDevsW(&hid_guid, NULL, NULL, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
+
+    for (idx = 0; SetupDiEnumDeviceInterfaces(set, NULL, &hid_guid, idx, &iface); ++idx)
+    {
+        if (!(device = add_device(set, &iface)))
+            continue;
+
+        attr.Size = sizeof(HIDD_ATTRIBUTES);
+        if (!HidD_GetAttributes(device->file, &attr))
+            WARN("Failed to get attributes.\n");
+
+        device->info.dwType = RIM_TYPEHID;
+        device->info.u.hid.dwVendorId = attr.VendorID;
+        device->info.u.hid.dwProductId = attr.ProductID;
+        device->info.u.hid.dwVersionNumber = attr.VersionNumber;
+
+        if (!HidD_GetPreparsedData(device->file, &device->data))
+            WARN("Failed to get preparsed data.\n");
+
+        if (!HidP_GetCaps(device->data, &caps))
+            WARN("Failed to get caps.\n");
+
+        device->info.u.hid.usUsagePage = caps.UsagePage;
+        device->info.u.hid.usUsage = caps.Usage;
     }
 
     SetupDiDestroyDeviceInfoList(set);
