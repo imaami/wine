@@ -3267,6 +3267,25 @@ NTSTATUS send_hardware_message( HWND hwnd, const INPUT *input, const RAWINPUT *r
         case INPUT_HARDWARE:
             req->input.hw.msg    = input->u.hi.uMsg;
             req->input.hw.lparam = MAKELONG( input->u.hi.wParamL, input->u.hi.wParamH );
+            switch (input->u.hi.uMsg)
+            {
+            case WM_INPUT_DEVICE_CHANGE:
+                req->input.hw.data.rawinput.type = rawinput->header.dwType;
+                switch (rawinput->header.dwType)
+                {
+                case RIM_TYPEHID:
+                    assert( rawinput->data.hid.dwCount <= 1 );
+                    req->input.hw.data.rawinput.hid.device = HandleToUlong( rawinput->header.hDevice );
+                    req->input.hw.data.rawinput.hid.param = rawinput->header.wParam;
+                    req->input.hw.data.rawinput.hid.length = rawinput->data.hid.dwSizeHid;
+                    if (rawinput->data.hid.dwSizeHid)
+                        wine_server_add_data( req, rawinput->data.hid.bRawData, rawinput->data.hid.dwSizeHid );
+                    break;
+                default:
+                    assert( 0 );
+                    break;
+                }
+            }
             break;
         }
         if (key_state_info) wine_server_set_reply( req, key_state_info->state,
