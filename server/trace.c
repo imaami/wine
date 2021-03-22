@@ -394,6 +394,22 @@ static void dump_irp_params( const char *prefix, const irp_params_t *data )
     }
 }
 
+static void dump_varargs_bytes( const char *prefix, data_size_t size )
+{
+    const unsigned char *data = cur_data;
+    data_size_t len = min( 1024, size );
+
+    fprintf( stderr, "%s{", prefix );
+    while (len > 0)
+    {
+        fprintf( stderr, "%02x", *data++ );
+        if (--len) fputc( ',', stderr );
+    }
+    if (size > 1024) fprintf( stderr, "...(total %u)", size );
+    fputc( '}', stderr );
+    remove_data( size );
+}
+
 static void dump_rawinput( const char *prefix, const union rawinput *rawinput )
 {
     switch (rawinput->type)
@@ -405,6 +421,12 @@ static void dump_rawinput( const char *prefix, const union rawinput *rawinput )
     case RIM_TYPEKEYBOARD:
         fprintf( stderr, "%s{type=KEYBOARD,message=%04x,vkey=%04hx,scan=%04hx}", prefix,
                  rawinput->kbd.message, rawinput->kbd.vkey, rawinput->kbd.scan );
+        break;
+    case RIM_TYPEHID:
+        fprintf( stderr, "%s{type=HID,device=%04x,param=%04x,length=%u", prefix,
+                 rawinput->hid.device, rawinput->hid.param, rawinput->hid.length );
+        dump_varargs_bytes( ",report=", rawinput->hid.length );
+        fputc( '}', stderr );
         break;
     default:
         fprintf( stderr, "%s{type=%04x}", prefix, rawinput->type );
@@ -576,22 +598,6 @@ static void dump_varargs_user_handles( const char *prefix, data_size_t size )
         fprintf( stderr, "%08x", *data++ );
         if (--len) fputc( ',', stderr );
     }
-    fputc( '}', stderr );
-    remove_data( size );
-}
-
-static void dump_varargs_bytes( const char *prefix, data_size_t size )
-{
-    const unsigned char *data = cur_data;
-    data_size_t len = min( 1024, size );
-
-    fprintf( stderr,"%s{", prefix );
-    while (len > 0)
-    {
-        fprintf( stderr, "%02x", *data++ );
-        if (--len) fputc( ',', stderr );
-    }
-    if (size > 1024) fprintf( stderr, "...(total %u)", size );
     fputc( '}', stderr );
     remove_data( size );
 }
