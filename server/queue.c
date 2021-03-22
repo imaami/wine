@@ -1751,8 +1751,8 @@ static int queue_rawinput_message( struct process* process, void *arg )
 {
     const struct rawinput_message* raw_msg = arg;
     const struct rawinput_device *device = NULL;
-    struct desktop *target_desktop = NULL;
-    struct thread *target_thread = NULL;
+    struct desktop *target_desktop = NULL, *desktop = NULL;
+    struct thread *target_thread = NULL, *foreground = NULL;
     struct message *msg;
     int wparam = RIM_INPUT;
 
@@ -1762,12 +1762,18 @@ static int queue_rawinput_message( struct process* process, void *arg )
         device = process->rawinput_kbd;
     if (!device) return 0;
 
-    if (process != raw_msg->foreground->process)
+    if (raw_msg->desktop) desktop = (struct desktop *)grab_object( raw_msg->desktop );
+    else if (!(desktop = get_desktop_obj( process, process->desktop, 0 ))) goto done;
+
+    if (raw_msg->foreground) foreground = (struct thread *)grab_object( raw_msg->foreground );
+    else if (!(foreground = get_foreground_thread( desktop, 0 ))) goto done;
+
+    if (process != foreground->process)
     {
         if (!(device->flags & RIDEV_INPUTSINK)) goto done;
         if (!(target_thread = get_window_thread( device->target ))) goto done;
         if (!(target_desktop = get_thread_desktop( target_thread, 0 ))) goto done;
-        if (target_desktop != raw_msg->desktop) goto done;
+        if (target_desktop != desktop) goto done;
         wparam = RIM_INPUTSINK;
     }
 
@@ -1780,11 +1786,13 @@ static int queue_rawinput_message( struct process* process, void *arg )
     msg->lparam = 0;
     memcpy( msg->data, &raw_msg->data, sizeof(raw_msg->data) );
 
-    queue_hardware_message( raw_msg->desktop, msg, 1 );
+    queue_hardware_message( desktop, msg, 1 );
 
 done:
     if (target_thread) release_object( target_thread );
     if (target_desktop) release_object( target_desktop );
+    if (foreground) release_object( foreground );
+    if (desktop) release_object( desktop );
     return 0;
 }
 
@@ -2042,6 +2050,7 @@ static void queue_custom_hardware_message( struct desktop *desktop, user_handle_
     struct hw_msg_source source = { IMDT_UNAVAILABLE, origin };
     struct message *msg;
 
+    if (!desktop) return;
     if (!(msg = alloc_hardware_message( 0, source, get_tick_count() ))) return;
 
     msg->win       = get_user_full_handle( win );
@@ -2541,15 +2550,14 @@ DECL_HANDLER(send_message)
 DECL_HANDLER(send_hardware_message)
 {
     struct thread *thread = NULL;
-    struct desktop *desktop;
+    struct desktop *desktop = get_thread_desktop( current, 0 );
     unsigned int origin = (req->flags & SEND_HWMSG_INJECTED ? IMO_INJECTED : IMO_HARDWARE);
     struct msg_queue *sender = get_current_queue();
     data_size_t size = min( 256, get_reply_max_size() );
 
-    if (!(desktop = get_thread_desktop( current, 0 ))) return;
-
     if (req->win)
     {
+        if (!desktop) return;
         if (!(thread = get_window_thread( req->win ))) return;
         if (desktop != thread->queue->input->desktop)
         {
@@ -2559,18 +2567,24 @@ DECL_HANDLER(send_hardware_message)
         }
     }
 
-    reply->prev_x = desktop->cursor.x;
-    reply->prev_y = desktop->cursor.y;
+    if (desktop)
+    {
+        reply->prev_x = desktop->cursor.x;
+        reply->prev_y = desktop->cursor.y;
+    }
 
     switch (req->input.type)
     {
     case INPUT_MOUSE:
+        if (!desktop) return;
         reply->wait = queue_mouse_message( desktop, req->win, &req->input, origin, sender );
         break;
     case INPUT_KEYBOARD:
+        if (!desktop) return;
         reply->wait = queue_keyboard_message( desktop, req->win, &req->input, origin, sender );
         break;
     case INPUT_HARDWARE:
+        if (!desktop) set_error( STATUS_SUCCESS );
         queue_custom_hardware_message( desktop, req->win, origin, &req->input );
         break;
     default:
@@ -2578,10 +2592,13 @@ DECL_HANDLER(send_hardware_message)
     }
     if (thread) release_object( thread );
 
-    reply->new_x = desktop->cursor.x;
-    reply->new_y = desktop->cursor.y;
-    set_reply_data( desktop->keystate, size );
-    release_object( desktop );
+    if (desktop)
+    {
+        reply->new_x = desktop->cursor.x;
+        reply->new_y = desktop->cursor.y;
+        set_reply_data( desktop->keystate, size );
+        release_object( desktop );
+    }
 }
 
 /* post a quit message to the current queue */
