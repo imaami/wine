@@ -2125,6 +2125,7 @@ static void queue_custom_hardware_message( struct desktop *desktop, user_handle_
 
     switch (input->hw.msg)
     {
+    case WM_INPUT:
     case WM_INPUT_DEVICE_CHANGE:
         raw_msg.foreground = get_foreground_thread( desktop, win );
         raw_msg.desktop    = desktop;
@@ -2134,18 +2135,26 @@ static void queue_custom_hardware_message( struct desktop *desktop, user_handle_
         raw_msg.extra      = NULL;
         raw_msg.extra_len  = 0;
 
+        if (input->hw.msg == WM_INPUT)
+        {
+            raw_msg.extra     = get_req_data();
+            raw_msg.extra_len = get_req_data_size();
+        }
+
         msg_data = &raw_msg.data;
         msg_data->info     = 0;
         msg_data->flags    = 0;
         msg_data->rawinput = input->hw.data.rawinput;
 
-        if (input->hw.data.rawinput.type == RIM_TYPEHID &&
+        if (input->hw.msg == WM_INPUT_DEVICE_CHANGE &&
+            input->hw.data.rawinput.type == RIM_TYPEHID &&
             input->hw.data.rawinput.hid.param == GIDC_ARRIVAL)
             insert_hid_rawinput_device( input->hw.data.rawinput.hid.device, get_req_data(), get_req_data_size() );
 
         enum_processes( queue_rawinput_message, &raw_msg );
 
-        if (input->hw.data.rawinput.type == RIM_TYPEHID &&
+        if (input->hw.msg == WM_INPUT_DEVICE_CHANGE &&
+            input->hw.data.rawinput.type == RIM_TYPEHID &&
             input->hw.data.rawinput.hid.param == GIDC_REMOVAL)
             remove_hid_rawinput_device( input->hw.data.rawinput.hid.device );
 
@@ -3471,16 +3480,18 @@ DECL_HANDLER(get_rawinput_buffer)
     {
         struct message *msg = LIST_ENTRY( ptr, struct message, entry );
         struct hardware_msg_data *data = msg->data;
+        data_size_t hid_size = data->rawinput.type != RIM_TYPEHID ? 0 : data->rawinput.hid.length;
+        data_size_t data_size = sizeof(*data) + hid_size;
 
         ptr = list_next( &input->msg_list, ptr );
         if (msg->msg != WM_INPUT) continue;
 
-        next_size = req->rawinput_size;
+        next_size = req->rawinput_size + hid_size;
         if (size + next_size > req->buffer_size) break;
-        if (cur + sizeof(*data) > buf + get_reply_max_size()) break;
-        if (cur + sizeof(*data) > buf + buf_size)
+        if (cur + data_size > buf + get_reply_max_size()) break;
+        if (cur + data_size > buf + buf_size)
         {
-            buf_size += buf_size / 2;
+            buf_size += buf_size / 2 + hid_size;
             if (!(tmp = realloc( buf, buf_size )))
             {
                 set_error( STATUS_NO_MEMORY );
@@ -3490,7 +3501,7 @@ DECL_HANDLER(get_rawinput_buffer)
             buf = tmp;
         }
 
-        memcpy(cur, data, sizeof(*data));
+        memcpy( cur, data, data_size );
         list_remove( &msg->entry );
         free_message( msg );
 

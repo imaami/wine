@@ -358,7 +358,7 @@ typedef union
         lparam_t       lparam;  /* message param */
         union
         {
-            union rawinput rawinput; /* WM_INPUT_DEVICE_CHANGE msg */
+            union rawinput rawinput; /* WM_INPUT and WM_INPUT_DEVICE_CHANGE msg */
         } data;
     } hw;
 } hw_input_t;

@@ -3272,6 +3272,7 @@ NTSTATUS send_hardware_message( HWND hwnd, const INPUT *input, const RAWINPUT *r
             req->input.hw.lparam = MAKELONG( input->u.hi.wParamL, input->u.hi.wParamH );
             switch (input->u.hi.uMsg)
             {
+            case WM_INPUT:
             case WM_INPUT_DEVICE_CHANGE:
                 req->input.hw.data.rawinput.type = rawinput->header.dwType;
                 switch (rawinput->header.dwType)
