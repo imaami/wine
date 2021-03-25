@@ -2135,7 +2135,7 @@ static void queue_custom_hardware_message( struct desktop *desktop, user_handle_
         raw_msg.extra      = NULL;
         raw_msg.extra_len  = 0;
 
-        if (input->hw.msg == WM_INPUT)
+        if (input->hw.msg == WM_INPUT && input->hw.data.rawinput.type == RIM_TYPEHID)
         {
             raw_msg.extra     = get_req_data();
             raw_msg.extra_len = get_req_data_size();
@@ -2145,6 +2145,9 @@ static void queue_custom_hardware_message( struct desktop *desktop, user_handle_
         msg_data->info     = 0;
         msg_data->flags    = 0;
         msg_data->rawinput = input->hw.data.rawinput;
+
+        if (input->hw.msg == WM_INPUT && input->hw.data.rawinput.type == RIM_TYPEMOUSE)
+            msg_data->flags = input->hw.lparam;
 
         if (input->hw.msg == WM_INPUT_DEVICE_CHANGE &&
             input->hw.data.rawinput.type == RIM_TYPEHID &&

@@ -3279,6 +3279,12 @@ NTSTATUS send_hardware_message( HWND hwnd, const INPUT *input, const RAWINPUT *r
                 req->input.hw.data.rawinput.type = rawinput->header.dwType;
                 switch (rawinput->header.dwType)
                 {
+                case RIM_TYPEMOUSE:
+                    req->input.hw.data.rawinput.mouse.x = rawinput->data.mouse.lLastX;
+                    req->input.hw.data.rawinput.mouse.y = rawinput->data.mouse.lLastY;
+                    req->input.hw.data.rawinput.mouse.data = rawinput->data.mouse.u.ulButtons;
+                    req->input.hw.lparam = rawinput->data.mouse.ulRawButtons;
+                    break;
                 case RIM_TYPEHID:
                     assert( rawinput->data.hid.dwCount <= 1 );
                     req->input.hw.data.rawinput.hid.device = HandleToUlong( rawinput->header.hDevice );
