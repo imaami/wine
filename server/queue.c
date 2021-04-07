@@ -1737,6 +1737,42 @@ static struct thread *get_foreground_thread( struct desktop *desktop, user_handl
     return NULL;
 }
 
+static struct rawinput_device *hid_rawinput_devices;
+static unsigned int hid_rawinput_device_count;
+
+static void insert_hid_rawinput_device( unsigned int index, const char *data, unsigned int data_len )
+{
+    unsigned int new_count;
+
+    if (data_len < 2) return;
+
+    if (!hid_rawinput_device_count)
+    {
+        hid_rawinput_device_count = 64;
+        while (hid_rawinput_device_count < index) hid_rawinput_device_count *= 2;
+        hid_rawinput_devices = mem_alloc( hid_rawinput_device_count * sizeof(*hid_rawinput_devices) );
+        memset( hid_rawinput_devices, 0, hid_rawinput_device_count * sizeof(*hid_rawinput_devices) );
+    }
+    else if (hid_rawinput_device_count < index)
+    {
+        new_count = hid_rawinput_device_count;
+        while (new_count < index) new_count *= 2;
+        hid_rawinput_devices = realloc( hid_rawinput_devices, new_count * sizeof(*hid_rawinput_devices) );
+        memset( hid_rawinput_devices + hid_rawinput_device_count, 0, (new_count - hid_rawinput_device_count) * sizeof(*hid_rawinput_devices) );
+        hid_rawinput_device_count = new_count;
+    }
+
+    hid_rawinput_devices[index].usage_page = data[0];
+    hid_rawinput_devices[index].usage = data[1];
+}
+
+static void remove_hid_rawinput_device( unsigned int index )
+{
+    if (hid_rawinput_device_count < index) return;
+    hid_rawinput_devices[index].usage_page = 0;
+    hid_rawinput_devices[index].usage = 0;
+}
+
 struct rawinput_message
 {
     struct thread           *foreground;
@@ -2049,6 +2085,19 @@ static void queue_custom_hardware_message( struct desktop *desktop, user_handle_
 {
     struct hw_msg_source source = { IMDT_UNAVAILABLE, origin };
     struct message *msg;
+
+    switch (input->hw.msg)
+    {
+    case WM_INPUT_DEVICE_CHANGE:
+        if (input->hw.data.rawinput.type == RIM_TYPEHID &&
+            input->hw.data.rawinput.hid.param == GIDC_ARRIVAL)
+            insert_hid_rawinput_device( input->hw.data.rawinput.hid.device, get_req_data(), get_req_data_size() );
+
+        if (input->hw.data.rawinput.type == RIM_TYPEHID &&
+            input->hw.data.rawinput.hid.param == GIDC_REMOVAL)
+            remove_hid_rawinput_device( input->hw.data.rawinput.hid.device );
+        return;
+    }
 
     if (!desktop) return;
     if (!(msg = alloc_hardware_message( 0, source, get_tick_count() ))) return;
